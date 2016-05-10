@@ -5,6 +5,7 @@
 #include <qstring.h>
 #include <qhash.h>
 #include <qdatetime.h>
+#include <qdebug.h>
 
 #include "proto_defines.h"
 #include "proto_headers.h"
@@ -39,6 +40,7 @@ class RawSocket : public QObject {
 
     SOCKET _socket;
     SOCKADDR_IN	socket_address;
+    QString ip;
 
     char buffer[MAX_PACKET_SIZE];  // 64 Kb
 
@@ -50,9 +52,8 @@ signals:
     void packetReady(QHash<QString, QString>);
 
 public:
-    static QString hostToHostName(unsigned long host_ip) {
+    static QString hostToHostName(const QString & ip_str) {
         struct addrinfo * res = 0;
-        QString ip_str = hostToStr(host_ip);
 
         if (getaddrinfo(CONST_CHAR(ip_str), 0, 0, &res) == 0) {
             char host[NI_MAXHOST];
@@ -65,6 +66,10 @@ public:
         }
 
         return QString();
+    }
+
+    static QString hostToHostName(unsigned long host_ip) {
+        return hostToHostName(hostToStr(host_ip));
     }
 
     static QString protocolToStr(unsigned char protocol) {
@@ -281,6 +286,131 @@ public:
         return list;
     }
 
+    int parseIpHeader(char * buffer, int size, QHash<QString, QString> & res, bool raw_payload = false) {
+        IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
+        unsigned short iphdrlen = iphdr -> header_len * 4;
+
+        res.insert("Timestamp",                     QDateTime::currentDateTime().toString());
+        res.insert("IP Version",                    UNSTR(iphdr -> header_ver));
+        res.insert("IP Header Length",              UNSTR(iphdrlen));
+        res.insert("IP Type Of Service",            UNSTR(iphdr -> tos));
+        res.insert("IP Total Length",               NSTR_HOST_BYTES_ORDER(iphdr -> total_length));
+        res.insert("IP Identification",             NSTR_HOST_BYTES_ORDER(iphdr -> id));
+        res.insert("IP Reserved ZERO Field",        UNSTR(iphdr -> reserved_zero));
+        res.insert("IP Dont Fragment Field",        UNSTR(iphdr -> dont_fragment));
+        res.insert("IP More Fragment Field",        UNSTR(iphdr -> more_fragment));
+        res.insert("IP TTL",                        UNSTR(iphdr -> ttl));
+        res.insert("NProtocol",                     UNSTR(iphdr -> protocol));
+        res.insert("Protocol",                      protocolToStr((unsigned int)iphdr -> protocol));
+        res.insert("IP Checksum",                   NSTR_HOST_BYTES_ORDER(iphdr -> checksum));
+
+        QString dest_ip = hostToStr(iphdr -> destaddr);
+        bool income = local_ips.contains(dest_ip);
+
+        direction_counters[income] = direction_counters.value(income, 0) + 1;
+
+        res.insert("Direction",                     income ? QStringLiteral("in") : QStringLiteral("out"));
+
+        res.insert("Source IP",                     hostToStr(iphdr -> srcaddr));
+        res.insert("Destination IP",                dest_ip);
+
+//        res.insert("Source",                        hostToHostName(iphdr -> srcaddr));
+//        res.insert("Destination",                   hostToHostName(iphdr -> destaddr));
+
+        if (raw_payload)
+            res.insert("Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
+
+        res.insert("-I",                            UNSTR(direction_counters[true]));
+        res.insert("-O",                            UNSTR(direction_counters[false]));
+
+        return iphdrlen;
+    }
+
+    QHash<QString, QString> parseTcpPacket(char * buffer, int size) {
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
+
+        TCP_HDR * tcpheader = (TCP_HDR *)(buffer + iphdrlen);
+        int data_offset = tcpheader -> data_offset * 4;
+
+        res.insert("TCP Source Port",               NSTR_HOST_BYTES_ORDER(tcpheader -> source_port));
+        res.insert("TCP Destination Port",          NSTR_HOST_BYTES_ORDER(tcpheader -> dest_port));
+        res.insert("TCP Sequence Number",           NLSTR_HOST_BYTES_ORDER(tcpheader -> sequence));
+        res.insert("TCP Acknowledge Number",        NLSTR_HOST_BYTES_ORDER(tcpheader -> acknowledge));
+        res.insert("TCP Header Length",             UNSTR(data_offset));
+        res.insert("TCP CWR Flag",                  UNSTR(tcpheader -> cwr));
+        res.insert("TCP ECN Flag",                  UNSTR(tcpheader -> ecn));
+        res.insert("TCP Urgent Flag",               UNSTR(tcpheader -> urg));
+        res.insert("TCP Acknowledgement Flag",      UNSTR(tcpheader -> ack));
+        res.insert("TCP Push Flag",                 UNSTR(tcpheader -> psh));
+        res.insert("TCP Reset Flag",                UNSTR(tcpheader -> rst));
+        res.insert("TCP Synchronise Flag",          UNSTR(tcpheader -> syn));
+        res.insert("TCP Finish Flag",               UNSTR(tcpheader -> fin));
+        res.insert("TCP Window",                    NSTR_HOST_BYTES_ORDER(tcpheader -> window));
+        res.insert("TCP Checksum",                  NSTR_HOST_BYTES_ORDER(tcpheader -> checksum));
+        res.insert("TCP Urgent Pointer",            NSTR(tcpheader -> urgent_pointer));
+        res.insert("Payload",
+            QString::fromUtf8(
+                buffer + iphdrlen + data_offset,
+                size - iphdrlen - data_offset
+            )
+        );
+
+        return res;
+    }
+
+    QHash<QString, QString> parseUdpPacket(char * buffer, int size) {
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
+
+        UDP_HDR * udpheader = (UDP_HDR *)(buffer + iphdrlen);
+
+        res.insert("UDP Source Port",               NSTR_HOST_BYTES_ORDER(udpheader -> source_port));
+        res.insert("UDP Destination Port",          NSTR_HOST_BYTES_ORDER(udpheader -> dest_port));
+        res.insert("UDP Length",                    NSTR_HOST_BYTES_ORDER(udpheader -> length));
+        res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
+
+        res.insert("Payload",
+            QString::fromUtf8(
+                buffer + sizeof(UDP_HDR) + iphdrlen,
+                size - sizeof(UDP_HDR) - iphdrlen
+            )
+        );
+
+        return res;
+    }
+
+    QHash<QString, QString> parseIcmpPacket(char * buffer, int size) {
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
+
+        ICMP_HDR * icmpheader = (ICMP_HDR*)(buffer + iphdrlen);
+
+        QString icmp_type = NSTR(icmpheader -> type);
+
+        switch(icmpheader -> type) {
+            case 0: icmp_type += " (ICMP Echo Reply)"; break;
+            case 11: icmp_type += " (TTL Expired)"; break;
+//            defaut: break;
+        }
+
+        res.insert("ICMP Type",                     icmp_type);
+        res.insert("ICMP Code",                     UNSTR(icmpheader -> code));
+        res.insert("ICMP Code",                     NSTR_HOST_BYTES_ORDER(icmpheader -> checksum));
+        res.insert("ICMP ID",                       NSTR_HOST_BYTES_ORDER(icmpheader -> id));
+        res.insert("ICMP Sequence",                 NSTR_HOST_BYTES_ORDER(icmpheader -> seq));
+
+        res.insert("Payload",
+            QString::fromUtf8(
+                buffer + sizeof(ICMP_HDR) + iphdrlen,
+                size - sizeof(ICMP_HDR) - iphdrlen
+            )
+        );
+
+        return res;
+    }
+
+
     //SOCK_STREAM
     RawSocket(QHash<QString, bool> & local_ips, int sock_type = SOCK_RAW, int protocol = IPPROTO_IP, int af = AF_INET)
         : ready(false), af_type(af), _socket(INVALID_SOCKET), local_ips(local_ips) {
@@ -310,8 +440,10 @@ public:
 
     bool isReady() { return ready; }
 
-    bool binding(const QString & ip = QString()/*"127.0.0.1"*/, int port = -1) {
+    bool binding(const QString & sock_ip = QString()/*"127.0.0.1"*/, int port = -1) {
         if (!initiated) return false;
+
+        ip = sock_ip;
 
         if (!initSocketAddr(ip, port)) return false;
 
@@ -415,129 +547,6 @@ private:
                 parseIpHeader(buffer, size, res, true);
                 return res;
         }
-    }
-
-    int parseIpHeader(char * buffer, int size, QHash<QString, QString> & res, bool raw_payload = false) {
-        IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
-        unsigned short iphdrlen = iphdr -> header_len * 4;
-
-        res.insert("Timestamp",                     QDateTime::currentDateTime().toString());
-        res.insert("IP Version",                    UNSTR(iphdr -> header_ver));
-        res.insert("IP Header Length",              UNSTR(iphdrlen));
-        res.insert("IP Type Of Service",            UNSTR(iphdr -> tos));
-        res.insert("IP Total Length",               NSTR_HOST_BYTES_ORDER(iphdr -> total_length));
-        res.insert("IP Identification",             NSTR_HOST_BYTES_ORDER(iphdr -> id));
-        res.insert("IP Reserved ZERO Field",        UNSTR(iphdr -> reserved_zero));
-        res.insert("IP Dont Fragment Field",        UNSTR(iphdr -> dont_fragment));
-        res.insert("IP More Fragment Field",        UNSTR(iphdr -> more_fragment));
-        res.insert("IP TTL",                        UNSTR(iphdr -> ttl));
-        res.insert("NProtocol",                     UNSTR(iphdr -> protocol));
-        res.insert("Protocol",                      protocolToStr((unsigned int)iphdr -> protocol));
-        res.insert("IP Checksum",                   NSTR_HOST_BYTES_ORDER(iphdr -> checksum));
-
-        QString dest_ip = hostToStr(iphdr -> destaddr);
-        bool income = local_ips.contains(dest_ip);
-
-        direction_counters[income] = direction_counters.value(income, 0) + 1;
-
-        res.insert("Direction",                     income ? QStringLiteral("in") : QStringLiteral("out"));
-
-        res.insert("Source IP",                     hostToStr(iphdr -> srcaddr));
-        res.insert("Destination IP",                dest_ip);
-
-        res.insert("Source",                        hostToHostName(iphdr -> srcaddr));
-        res.insert("Destination",                   hostToHostName(iphdr -> destaddr));
-
-        if (raw_payload)
-            res.insert("Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
-
-        res.insert("-I",                            UNSTR(direction_counters[true]));
-        res.insert("-O",                            UNSTR(direction_counters[false]));
-
-        return iphdrlen;
-    }
-
-    QHash<QString, QString> parseTcpPacket(char * buffer, int size) {
-        QHash<QString, QString> res;
-        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
-
-        TCP_HDR * tcpheader = (TCP_HDR *)(buffer + iphdrlen);
-
-        res.insert("TCP Source Port",               NSTR_HOST_BYTES_ORDER(tcpheader -> source_port));
-        res.insert("TCP Destination Port",          NSTR_HOST_BYTES_ORDER(tcpheader -> dest_port));
-        res.insert("TCP Sequence Number",           NLSTR_HOST_BYTES_ORDER(tcpheader -> sequence));
-        res.insert("TCP Acknowledge Number",        NLSTR_HOST_BYTES_ORDER(tcpheader -> acknowledge));
-        res.insert("TCP Header Length",             UNSTR(tcpheader -> data_offset * 4));
-        res.insert("TCP CWR Flag",                  UNSTR(tcpheader -> cwr));
-        res.insert("TCP ECN Flag",                  UNSTR(tcpheader -> ecn));
-        res.insert("TCP Urgent Flag",               UNSTR(tcpheader -> urg));
-        res.insert("TCP Acknowledgement Flag",      UNSTR(tcpheader -> ack));
-        res.insert("TCP Push Flag",                 UNSTR(tcpheader -> psh));
-        res.insert("TCP Reset Flag",                UNSTR(tcpheader -> rst));
-        res.insert("TCP Synchronise Flag",          UNSTR(tcpheader -> syn));
-        res.insert("TCP Finish Flag",               UNSTR(tcpheader -> fin));
-        res.insert("TCP Window",                    NSTR_HOST_BYTES_ORDER(tcpheader -> window));
-        res.insert("TCP Checksum",                  NSTR_HOST_BYTES_ORDER(tcpheader -> checksum));
-        res.insert("TCP Urgent Pointer",            NSTR(tcpheader -> urgent_pointer));
-        res.insert("Payload",
-            QString::fromUtf8(
-                buffer + iphdrlen + tcpheader -> data_offset * 4,
-                size - iphdrlen - tcpheader -> data_offset * 4
-            )
-        );
-
-        return res;
-    }
-
-    QHash<QString, QString> parseUdpPacket(char * buffer, int size) {
-        QHash<QString, QString> res;
-        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
-
-        UDP_HDR * udpheader = (UDP_HDR *)(buffer + iphdrlen);
-
-        res.insert("UDP Source Port",               NSTR_HOST_BYTES_ORDER(udpheader -> source_port));
-        res.insert("UDP Destination Port",          NSTR_HOST_BYTES_ORDER(udpheader -> dest_port));
-        res.insert("UDP Length",                    NSTR_HOST_BYTES_ORDER(udpheader -> length));
-        res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
-
-        res.insert("Payload",
-            QString::fromUtf8(
-                buffer + sizeof(UDP_HDR) + iphdrlen,
-                size - sizeof(UDP_HDR) - iphdrlen
-            )
-        );
-
-        return res;
-    }
-
-    QHash<QString, QString> parseIcmpPacket(char * buffer, int size) {
-        QHash<QString, QString> res;
-        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
-
-        ICMP_HDR * icmpheader = (ICMP_HDR*)(buffer + iphdrlen);
-
-        QString icmp_type = NSTR(icmpheader -> type);
-
-        switch(icmpheader -> type) {
-            case 0: icmp_type += " (ICMP Echo Reply)"; break;
-            case 11: icmp_type += " (TTL Expired)"; break;
-//            defaut: break;
-        }
-
-        res.insert("ICMP Type",                     icmp_type);
-        res.insert("ICMP Code",                     UNSTR(icmpheader -> code));
-        res.insert("ICMP Code",                     NSTR_HOST_BYTES_ORDER(icmpheader -> checksum));
-        res.insert("ICMP ID",                       NSTR_HOST_BYTES_ORDER(icmpheader -> id));
-        res.insert("ICMP Sequence",                 NSTR_HOST_BYTES_ORDER(icmpheader -> seq));
-
-        res.insert("Payload",
-            QString::fromUtf8(
-                buffer + sizeof(ICMP_HDR) + iphdrlen,
-                size - sizeof(ICMP_HDR) - iphdrlen
-            )
-        );
-
-        return res;
     }
 
     bool initSocketAddr(const QString & ip, int port = -1) {

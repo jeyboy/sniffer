@@ -33,8 +33,8 @@ public:
 
         if (sock -> binding(ip, port)) {
             sock -> enablePromMode();
-            sock -> enableIncludeHeader(true);
-            sock -> enableBlocking(false);
+//            sock -> enableIncludeHeader(true);
+//            sock -> enableBlocking(false);
         }
     }
 

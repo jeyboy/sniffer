@@ -62,7 +62,7 @@ class Sniffer : public QObject {
         connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
         wrapper -> moveToThread(thread);
-        thread -> start(QThread::TimeCriticalPriority);
+        thread -> start(QThread::HighestPriority);
     }
 public:
     Sniffer(QObject * parent) : QObject(parent) {
