@@ -65,8 +65,12 @@ class Sniffer : public QObject {
         thread -> start(QThread::TimeCriticalPriority);
     }
 public:
-    Sniffer(QObject * parent, const char * packetSlot, const char * errorSlot, int port = -1) : QObject(parent) {
+    Sniffer(QObject * parent) : QObject(parent) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
+    }
+
+    void start(const char * packetSlot, const char * errorSlot, int port = -1) {
+        if (!wrappers.isEmpty()) return;
 
         QStringList hosts = RawSocket::hostsList();
 
@@ -79,27 +83,16 @@ public:
         registerWrapper(ips, packetSlot, errorSlot, host, port);
     }
 
-    ~Sniffer() {
+    void stop() {
         for(QHash<QString, SnifferSocketWrapper *>::Iterator it = wrappers.begin(); it != wrappers.end(); it++) {
             it.value() -> stop();
             it.value() -> deleteLater();
         }
+
+        wrappers.clear();
     }
 
-//    void checkPackets(RawSocket * sock, QFutureWatcher<void> * initiator) {
-//        while(!initiator -> isCanceled()) {
-//            QHash<QString, QString> attrs = sock -> packetSniff();
-//            if (!attrs.isEmpty()) {
-//                if (addresses.contains(attrs["Destination IP"]))
-//                    income++;
-//                else
-//                    outcome++;
-
-//                emit packetReceived(attrs);
-////                QThread::usleep(5);
-//            }
-//        }
-//    }
+    ~Sniffer() { stop(); }
 };
 
 #endif // SNIFFER

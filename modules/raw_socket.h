@@ -4,6 +4,7 @@
 #include <qobject.h>
 #include <qstring.h>
 #include <qhash.h>
+#include <qdatetime.h>
 
 #include "proto_defines.h"
 #include "proto_headers.h"
@@ -420,6 +421,7 @@ private:
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
 
+        res.insert("Timestamp",                     QDateTime::currentDateTime().toString());
         res.insert("IP Version",                    UNSTR(iphdr -> header_ver));
         res.insert("IP Header Length",              UNSTR(iphdrlen));
         res.insert("IP Type Of Service",            UNSTR(iphdr -> tos));
@@ -429,8 +431,8 @@ private:
         res.insert("IP Dont Fragment Field",        UNSTR(iphdr -> dont_fragment));
         res.insert("IP More Fragment Field",        UNSTR(iphdr -> more_fragment));
         res.insert("IP TTL",                        UNSTR(iphdr -> ttl));
-        res.insert("IP NProtocol",                  UNSTR(iphdr -> protocol));
-        res.insert("IP Protocol",                   protocolToStr((unsigned int)iphdr -> protocol));
+        res.insert("NProtocol",                     UNSTR(iphdr -> protocol));
+        res.insert("Protocol",                      protocolToStr((unsigned int)iphdr -> protocol));
         res.insert("IP Checksum",                   NSTR_HOST_BYTES_ORDER(iphdr -> checksum));
 
         QString dest_ip = hostToStr(iphdr -> destaddr);
@@ -447,7 +449,7 @@ private:
         res.insert("Destination",                   hostToHostName(iphdr -> destaddr));
 
         if (raw_payload)
-            res.insert("Raw Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
+            res.insert("Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
 
         res.insert("-I",                            UNSTR(direction_counters[true]));
         res.insert("-O",                            UNSTR(direction_counters[false]));
@@ -477,7 +479,7 @@ private:
         res.insert("TCP Window",                    NSTR_HOST_BYTES_ORDER(tcpheader -> window));
         res.insert("TCP Checksum",                  NSTR_HOST_BYTES_ORDER(tcpheader -> checksum));
         res.insert("TCP Urgent Pointer",            NSTR(tcpheader -> urgent_pointer));
-        res.insert("TCP Payload",
+        res.insert("Payload",
             QString::fromUtf8(
                 buffer + iphdrlen + tcpheader -> data_offset * 4,
                 size - iphdrlen - tcpheader -> data_offset * 4
@@ -498,7 +500,7 @@ private:
         res.insert("UDP Length",                    NSTR_HOST_BYTES_ORDER(udpheader -> length));
         res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
 
-        res.insert("UDP Payload",
+        res.insert("Payload",
             QString::fromUtf8(
                 buffer + sizeof(UDP_HDR) + iphdrlen,
                 size - sizeof(UDP_HDR) - iphdrlen
@@ -528,7 +530,7 @@ private:
         res.insert("ICMP ID",                       NSTR_HOST_BYTES_ORDER(icmpheader -> id));
         res.insert("ICMP Sequence",                 NSTR_HOST_BYTES_ORDER(icmpheader -> seq));
 
-        res.insert("ICMP Payload",
+        res.insert("Payload",
             QString::fromUtf8(
                 buffer + sizeof(ICMP_HDR) + iphdrlen,
                 size - sizeof(ICMP_HDR) - iphdrlen
