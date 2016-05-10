@@ -120,6 +120,7 @@ typedef struct icmp_hdr {
 #define SOCK_ATTR_SRC QStringLiteral("Source")
 #define SOCK_ATTR_DEST QStringLiteral("Destination")
 #define SOCK_ATTR_PAYLOAD QStringLiteral("Payload")
+#define SOCK_ATTR_LENGTH QStringLiteral("Length")
 
 class SocketUtils {
 public:
@@ -130,7 +131,7 @@ public:
 //            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
 //            byte ch = (unsigned char)*b;
 //            QChar cch = QChar(ch);
-            char cch = (*b >= 32 && *b <= 128) ? (unsigned char) *b : '.';
+            char cch = (*b >= 32) ? (unsigned char) *b : '.';
             s[i] = cch;
         }
         return s;

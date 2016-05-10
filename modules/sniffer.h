@@ -54,6 +54,24 @@ class Sniffer : public QObject {
     QHash<QString, int> protocol_counters;
     QHash<bool, int> direction_counters;
 
+    void procPacketAsync(char * data, int length) {
+        QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
+
+        protocol_counters[attrs[SOCK_ATTR_PROTOCOL]]++;
+
+        QString dest_ip = attrs[SOCK_ATTR_DEST_IP];
+        bool income = local_ips.contains(dest_ip);
+
+        direction_counters[income]++;
+
+        attrs.insert(SOCK_ATTR_DIRECTION,               income ? QStringLiteral("in") : QStringLiteral("out"));
+
+//        attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
+//        attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
+
+        free(data);
+        emit sendPacket(attrs);
+    }
 
     void registerWrapper(const char * packetSlot, const char * errorSlot, const QString & ip = QString(), int port = -1) {
         connect(this, SIGNAL(sendPacket(QHash<QString,QString>)), parent(), packetSlot);
@@ -87,22 +105,8 @@ signals:
     void sendPacket(QHash<QString, QString>);
 protected slots:
     void procPacket(char * data, int length) {
-        QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
-
-        protocol_counters[attrs[SOCK_ATTR_PROTOCOL]]++;
-
-        QString dest_ip = attrs[SOCK_ATTR_DEST_IP];
-        bool income = local_ips.contains(dest_ip);
-
-        direction_counters[income]++;
-
-        attrs.insert(SOCK_ATTR_DIRECTION,               income ? QStringLiteral("in") : QStringLiteral("out"));
-
-//        attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
-//        attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
-
-        free(data);
-        emit sendPacket(attrs);
+        //QFutureWatcher<void> * server = new QFutureWatcher<void>();
+        /*server -> setFuture(*/QtConcurrent::run(this, &Sniffer::procPacketAsync, data, length)/*)*/;
     }
 public:
     Sniffer(QObject * parent) : QObject(parent) {
