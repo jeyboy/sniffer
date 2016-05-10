@@ -17,19 +17,21 @@ signals:
     void error(QString);
     void updateStat(int, int);
 public:
-    SnifferSocketWrapper(QHash<QString, bool> & ips) : QObject() {
-        sock = new RawSocket(ips);
+    SnifferSocketWrapper() : QObject() {
+        sock = new RawSocket();
     }
 
     ~SnifferSocketWrapper() {
         delete sock;
     }
 
-    void instantiate(QObject * receiver, const char * packetSlot, const char * errorSlot, const QString & ip = QString(), int port = -1) {
+    void instantiate(QObject * packet_receiver, const char * packetSlot, QObject * err_receiver,
+                     const char * errorSlot, const QString & ip = QString(), int port = -1)
+    {
         QObject::connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
-        QObject::connect(this, SIGNAL(error(QString)), receiver, errorSlot);
-        QObject::connect(sock, SIGNAL(error(QString)), receiver, errorSlot);
-        QObject::connect(sock, SIGNAL(packetReady(QHash<QString,QString>)), receiver, packetSlot);
+        QObject::connect(this, SIGNAL(error(QString)), err_receiver, errorSlot);
+        QObject::connect(sock, SIGNAL(error(QString)), err_receiver, errorSlot);
+        QObject::connect(sock, SIGNAL(packetReady(char*,int)), packet_receiver, packetSlot);
 
         if (sock -> binding(ip, port)) {
             sock -> enablePromMode();
