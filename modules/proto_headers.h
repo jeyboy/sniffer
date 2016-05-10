@@ -104,6 +104,8 @@ typedef struct icmp_hdr {
 #define NSTR_HOST_BYTES_ORDER(num) NSTR(ntohs(num))
 #define NLSTR_HOST_BYTES_ORDER(num) NSTR(ntohl(num))
 
+#define BUFF_TEXT(buff, length) QString::fromLatin1(buff, length)
+
 #define ULONG_BYTE4(u) ((u & 0xFF000000) >> 24)
 #define ULONG_BYTE3(u) ((u & 0xFF0000) >> 16)
 #define ULONG_BYTE2(u) ((u & 0xFF00) >> 8)
@@ -392,7 +394,7 @@ public:
         res.insert(SOCK_ATTR_DEST_IP,               hostToStr(iphdr -> destaddr));
 
         if (raw_payload)
-            res.insert(SOCK_ATTR_PAYLOAD,           QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
+            res.insert(SOCK_ATTR_PAYLOAD,           BUFF_TEXT(buffer + iphdrlen, size - iphdrlen));
 
         return iphdrlen;
     }
@@ -421,7 +423,7 @@ public:
         res.insert("TCP Checksum",                  NSTR_HOST_BYTES_ORDER(tcpheader -> checksum));
         res.insert("TCP Urgent Pointer",            NSTR(tcpheader -> urgent_pointer));
         res.insert(SOCK_ATTR_PAYLOAD,
-            QString::fromUtf8(
+            BUFF_TEXT(
                 buffer + iphdrlen + data_offset,
                 size - iphdrlen - data_offset
             )
@@ -442,7 +444,7 @@ public:
         res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
 
         res.insert(SOCK_ATTR_PAYLOAD,
-            QString::fromUtf8(
+            BUFF_TEXT(
                 buffer + sizeof(UDP_HDR) + iphdrlen,
                 size - sizeof(UDP_HDR) - iphdrlen
             )
@@ -472,7 +474,7 @@ public:
         res.insert("ICMP Sequence",                 NSTR_HOST_BYTES_ORDER(icmpheader -> seq));
 
         res.insert(SOCK_ATTR_PAYLOAD,
-            QString::fromUtf8(
+            BUFF_TEXT(
                 buffer + sizeof(ICMP_HDR) + iphdrlen,
                 size - sizeof(ICMP_HDR) - iphdrlen
             )

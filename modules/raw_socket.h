@@ -80,7 +80,7 @@ public:
         int sender_addr_size = sizeof(sender_addr);
 
         while(blocked) {
-            int count = recvfrom(_socket, buffer, sizeof(buffer), 0/*MSG_PEEK*/, (sockaddr *)&sender_addr, &sender_addr_size);
+            int count = recvfrom(_socket, buffer, sizeof(buffer), 0, (sockaddr *)&sender_addr, &sender_addr_size);
 
             if (count > 0) {
 //                switch (sender_addr.ss_family) {
@@ -103,33 +103,11 @@ public:
         blocked = false;
     }
 
-//    QHash<QString, QString> packetSniff() {
-////        int count = recv(_socket, buffer, sizeof(buffer), MSG_PEEK);
-//        sockaddr_storage sender_addr;
-//        int sender_addr_size = sizeof(sender_addr);
-
-//        int count = recvfrom(_socket, buffer, sizeof(buffer), MSG_PEEK, (sockaddr *)&sender_addr, &sender_addr_size);
-
-////        switch (sender_addr.ss_family) {
-////            case AF_INET: {
-////                sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);
-////                break;}
-////            case AF_INET6: {
-////                sockaddr_in6 * from = ((struct sockaddr_in6*)&sender_addr);
-////            break;}
-////        }
-
-//        if (count > 0)
-//            return packetProcess(buffer, count);
-//        else return stubData();
-//    }
-
     // mixed mode
     bool enablePromMode(bool enable = true) {
         if (ready) {
             DWORD n;
             u_long prom_mode = enable ? 1 : 0;
-//            return ioctlsocket(_socket, SIO_RCVALL, &prom_mode) != SOCKET_ERROR;
             return WSAIoctl(_socket, SIO_RCVALL, &prom_mode, sizeof(prom_mode), 0, 0, &n, 0, 0) != SOCKET_ERROR;
         }
 
