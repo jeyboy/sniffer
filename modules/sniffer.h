@@ -78,9 +78,12 @@ public:
         for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++)
             ips.insert(*h, true);
 
-        QString host = hosts.first();
-        qDebug() << "HOST:" << host;
-        registerWrapper(ips, packetSlot, errorSlot, host, port);
+//        QString host = hosts.first();
+//        qDebug() << "HOST:" << host;
+//        registerWrapper(ips, packetSlot, errorSlot, host, port);
+
+        for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++)
+            registerWrapper(ips, packetSlot, errorSlot, *h, port);
     }
 
     void stop() {

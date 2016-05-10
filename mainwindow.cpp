@@ -4,8 +4,11 @@
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui -> setupUi(this);
 
-    ui -> table -> setColumnCount(7);
-    ui -> table -> setHorizontalHeaderLabels(QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Source Name" << "Destination IP" << "Destination Name");
+    QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Payload";
+
+    ui -> table -> setColumnCount(headers.length());
+    ui -> table -> setHorizontalHeaderLabels(headers);
+    ui -> table -> setSortingEnabled(true);
 
     sniffer = new Sniffer(this);
 }
@@ -34,14 +37,17 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs["Source IP"]);
     ui -> table -> setItem(row, 3, sourceipw);
 
-    QTableWidgetItem * sourcew = new QTableWidgetItem(attrs["Source"]);
-    ui -> table -> setItem(row, 4, sourcew);
-
     QTableWidgetItem * destipw = new QTableWidgetItem(attrs["Destination IP"]);
-    ui -> table -> setItem(row, 5, destipw);
+    ui -> table -> setItem(row, 4, destipw);
+
+    QTableWidgetItem * sourcew = new QTableWidgetItem(attrs["Source"]);
+    ui -> table -> setItem(row, 5, sourcew);
 
     QTableWidgetItem * destw = new QTableWidgetItem(attrs["Destination"]);
     ui -> table -> setItem(row, 6, destw);
+
+    QTableWidgetItem * payw = new QTableWidgetItem(attrs["Payload"]);
+    ui -> table -> setItem(row, 7, payw);
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();

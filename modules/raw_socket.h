@@ -329,7 +329,7 @@ public:
         int sender_addr_size = sizeof(sender_addr);
 
         while(blocked) {
-            int count = recvfrom(_socket, buffer, sizeof(buffer), MSG_PEEK, (sockaddr *)&sender_addr, &sender_addr_size);
+            int count = recvfrom(_socket, buffer, sizeof(buffer), 0/*MSG_PEEK*/, (sockaddr *)&sender_addr, &sender_addr_size);
 
             if (count > 0) {
 //                switch (sender_addr.ss_family) {
