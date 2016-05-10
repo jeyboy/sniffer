@@ -41,7 +41,9 @@ class RawSocket : public QObject {
 
     char buffer[MAX_PACKET_SIZE];  // 64 Kb
 
-    QHash<unsigned char, int> counters;
+    QHash<unsigned char, int> protocol_counters;
+    QHash<bool, int> direction_counters;
+    QHash<QString, bool> local_ips;
 signals:
     void error(QString);
     void packetReady(QHash<QString, QString>);
@@ -278,10 +280,9 @@ public:
         return list;
     }
 
-    bool isReady() { return ready; }
-
     //SOCK_STREAM
-    RawSocket(int sock_type = SOCK_RAW, int protocol = IPPROTO_IP, int af = AF_INET) : ready(false), af_type(af), _socket(INVALID_SOCKET) {
+    RawSocket(QHash<QString, bool> & local_ips, int sock_type = SOCK_RAW, int protocol = IPPROTO_IP, int af = AF_INET)
+        : ready(false), af_type(af), _socket(INVALID_SOCKET), local_ips(local_ips) {
         WSADATA wsaData;
         initiated = WSAStartup(MAKEWORD(2,2), &wsaData) == 0;
 
@@ -306,8 +307,9 @@ public:
             WSACleanup();
     }
 
-    // "127.0.0.1"
-    bool binding(const QString & ip = QString(), int port = -1) {
+    bool isReady() { return ready; }
+
+    bool binding(const QString & ip = QString()/*"127.0.0.1"*/, int port = -1) {
         if (!initiated) return false;
 
         if (!initSocketAddr(ip, port)) return false;
@@ -400,7 +402,7 @@ private:
     QHash<QString, QString> packetProcess(char * buffer, int size) {
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
 
-        counters[iphdr -> protocol] = counters.value(iphdr -> protocol, 0) + 1;
+        protocol_counters[iphdr -> protocol] = protocol_counters.value(iphdr -> protocol, 0) + 1;
 
         switch (iphdr -> protocol) {
             case IPPROTO_ICMP: return parseIcmpPacket(buffer, size);
@@ -408,13 +410,13 @@ private:
             case IPPROTO_UDP: return parseUdpPacket(buffer, size);
 
             default:
-                QHash<QString, QString> res = stubData();
+                QHash<QString, QString> res;
                 parseIpHeader(buffer, size, res, true);
                 return res;
         }
     }
 
-    void parseIpHeader(char * buffer, int size, QHash<QString, QString> & res, bool raw_payload = false) {
+    int parseIpHeader(char * buffer, int size, QHash<QString, QString> & res, bool raw_payload = false) {
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
 
@@ -431,22 +433,31 @@ private:
         res.insert("IP Protocol",                   protocolToStr((unsigned int)iphdr -> protocol));
         res.insert("IP Checksum",                   NSTR_HOST_BYTES_ORDER(iphdr -> checksum));
 
+        QString dest_ip = hostToStr(iphdr -> destaddr);
+        bool income = local_ips.contains(dest_ip);
+
+        direction_counters[income] = direction_counters.value(income, 0) + 1;
+
+        res.insert("Direction",                     income ? QStringLiteral("in") : QStringLiteral("out"));
+
         res.insert("Source IP",                     hostToStr(iphdr -> srcaddr));
-        res.insert("Destination IP",                hostToStr(iphdr -> destaddr));
+        res.insert("Destination IP",                dest_ip);
 
         res.insert("Source",                        hostToHostName(iphdr -> srcaddr));
         res.insert("Destination",                   hostToHostName(iphdr -> destaddr));
 
         if (raw_payload)
             res.insert("Raw Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
+
+        res.insert("-I",                            UNSTR(direction_counters[true]));
+        res.insert("-O",                            UNSTR(direction_counters[false]));
+
+        return iphdrlen;
     }
 
     QHash<QString, QString> parseTcpPacket(char * buffer, int size) {
-        QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, size, res);
-
-        IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
-        unsigned short iphdrlen = iphdr -> header_len * 4;
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
 
         TCP_HDR * tcpheader = (TCP_HDR *)(buffer + iphdrlen);
 
@@ -477,11 +488,8 @@ private:
     }
 
     QHash<QString, QString> parseUdpPacket(char * buffer, int size) {
-        QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, size, res);
-
-        IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
-        unsigned short iphdrlen = iphdr -> header_len * 4;
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
 
         UDP_HDR * udpheader = (UDP_HDR *)(buffer + iphdrlen);
 
@@ -501,11 +509,8 @@ private:
     }
 
     QHash<QString, QString> parseIcmpPacket(char * buffer, int size) {
-        QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, size, res);
-
-        IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
-        unsigned short iphdrlen = iphdr -> header_len * 4;
+        QHash<QString, QString> res;
+        unsigned short iphdrlen = parseIpHeader(buffer, size, res);
 
         ICMP_HDR * icmpheader = (ICMP_HDR*)(buffer + iphdrlen);
 

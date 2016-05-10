@@ -50,53 +50,40 @@ class Sniffer : public QObject {
 
     QHash<QString, SnifferSocketWrapper *> wrappers;
 
-    int outcome, income;
-
     void registerWrapper(QHash<QString, bool> ips, const char * packetSlot, const char * errorSlot, const QString & ip = QString(), int port = -1) {
-        SnifferSocketWrapper * wrapper = new SnifferSocketWrapper(this);
-        wrapper -> instantiate(ips, parent(), packetSlot, errorSlot, ip, port);
+        SnifferSocketWrapper * wrapper = new SnifferSocketWrapper(ips);
+        wrapper -> instantiate(parent(), packetSlot, errorSlot, ip, port);
         wrappers.insert(ip, wrapper);
 
         QThread * thread = new QThread();
 
         connect(thread, SIGNAL(started()), wrapper, SLOT(process()));
         connect(wrapper, SIGNAL(finished()), thread, SLOT(quit()));
-        connect(this, SIGNAL(stopAll()), wrapper, SLOT(stop()));
         connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
         wrapper -> moveToThread(thread);
         thread -> start(QThread::TimeCriticalPriority);
     }
-
-signals:
-    void stopAll();
-
-public slots:
-    void updateStat(int income_val, int outcome_val) {
-        income += income_val;
-        outcome += outcome_val;
-    }
 public:
-    QString stat() { return QStringLiteral("income: ") + QString::number(income) + QStringLiteral(" ||| outcome: ") + QString::number(outcome); }
-
-    Sniffer(QObject * parent, const char * packetSlot, const char * errorSlot, int port = -1) : QObject(parent), outcome(0), income(0) {
+    Sniffer(QObject * parent, const char * packetSlot, const char * errorSlot, int port = -1) : QObject(parent) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
 
         QStringList hosts = RawSocket::hostsList();
+
         QHash<QString, bool> ips;
-
-//        registerSocket(QString(), port);
-
-        for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++) {
+        for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++)
             ips.insert(*h, true);
-//            registerSocket(*h, port);
-        }
 
-        registerWrapper(ips, packetSlot, errorSlot, hosts.first(), port);
+        QString host = hosts.first();
+        qDebug() << "HOST:" << host;
+        registerWrapper(ips, packetSlot, errorSlot, host, port);
     }
 
     ~Sniffer() {
-        emit stopAll();
+        for(QHash<QString, SnifferSocketWrapper *>::Iterator it = wrappers.begin(); it != wrappers.end(); it++) {
+            it.value() -> stop();
+            it.value() -> deleteLater();
+        }
     }
 
 //    void checkPackets(RawSocket * sock, QFutureWatcher<void> * initiator) {

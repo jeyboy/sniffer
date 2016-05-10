@@ -11,17 +11,17 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::packetInfoReceived(const QHash<QString, QString> & attrs) {
+void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
+    QString stat = QStringLiteral("income: %1 ||| outcome: %2").arg(attrs.take(QStringLiteral("-I")), attrs.take(QStringLiteral("-O")));
+    setWindowTitle(stat);
+
 //    QString html = QString("<ul>");
 //    for(QHash<QString, QString>::ConstIterator it = attrs.cbegin(); it != attrs.cend(); it++)
 //        html += QStringLiteral("<li>") + it.key() + QStringLiteral(" : ") + it.value() + QStringLiteral("</li>");
 
 //    html += QStringLiteral("</ul><br>");
 
-////    QString text = QString("<span style='color: green'>%1 ::: %2 ::: %3 ::: %4 ::: %5</span>").arg(ver, protocol, from, to, body);
 //    ui -> log -> appendHtml(html);
-
-    setWindowTitle(sniffer -> stat());
 }
 void MainWindow::errorReceived(QString message) {
     qDebug() << "ERR:" << message;

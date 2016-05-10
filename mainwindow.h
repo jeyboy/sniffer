@@ -13,7 +13,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 public slots:
-    void packetInfoReceived(const QHash<QString, QString> & attrs);
+    void packetInfoReceived(QHash<QString, QString> attrs);
     void errorReceived(QString message);
 
 private:
