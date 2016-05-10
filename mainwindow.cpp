@@ -4,8 +4,8 @@
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui -> setupUi(this);
 
-    ui -> table -> setColumnCount(5);
-    ui -> table -> setHorizontalHeaderLabels(QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source" << "Destination");
+    ui -> table -> setColumnCount(7);
+    ui -> table -> setHorizontalHeaderLabels(QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Source Name" << "Destination IP" << "Destination Name");
 
     sniffer = new Sniffer(this);
 }
@@ -31,20 +31,17 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     QTableWidgetItem * protow = new QTableWidgetItem(attrs["Protocol"]);
     ui -> table -> setItem(row, 2, protow);
 
-    QString src = attrs["Source IP"];
-    if (src != attrs["Source"])
-        src = QStringLiteral("%1 (%2)").arg(src, attrs["Source"]);
+    QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs["Source IP"]);
+    ui -> table -> setItem(row, 3, sourceipw);
 
-    QTableWidgetItem * sourcew = new QTableWidgetItem(src);
-    ui -> table -> setItem(row, 3, sourcew);
+    QTableWidgetItem * sourcew = new QTableWidgetItem(attrs["Source"]);
+    ui -> table -> setItem(row, 4, sourcew);
 
+    QTableWidgetItem * destipw = new QTableWidgetItem(attrs["Destination IP"]);
+    ui -> table -> setItem(row, 5, destipw);
 
-    QString dst = attrs["Destination IP"];
-    if (dst != attrs["Destination"])
-        dst = QStringLiteral("%1 (%2)").arg(dst, attrs["Destination"]);
-
-    QTableWidgetItem * destw = new QTableWidgetItem(dst);
-    ui -> table -> setItem(row, 4, destw);
+    QTableWidgetItem * destw = new QTableWidgetItem(attrs["Destination"]);
+    ui -> table -> setItem(row, 6, destw);
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();
