@@ -120,8 +120,10 @@ public:
 
         for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++) {
             local_ips.insert(*h, true);
-            registerWrapper(packetSlot, errorSlot, *h, port);
+//            registerWrapper(packetSlot, errorSlot, *h, port);
         }
+
+        registerWrapper(packetSlot, errorSlot, hosts.first(), port);
     }
 
     void stop() {

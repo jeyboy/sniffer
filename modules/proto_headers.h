@@ -104,8 +104,6 @@ typedef struct icmp_hdr {
 #define NSTR_HOST_BYTES_ORDER(num) NSTR(ntohs(num))
 #define NLSTR_HOST_BYTES_ORDER(num) NSTR(ntohl(num))
 
-#define BUFF_TEXT(buff, length) QString::fromLatin1(buff, length)
-
 #define ULONG_BYTE4(u) ((u & 0xFF000000) >> 24)
 #define ULONG_BYTE3(u) ((u & 0xFF0000) >> 16)
 #define ULONG_BYTE2(u) ((u & 0xFF00) >> 8)
@@ -125,6 +123,19 @@ typedef struct icmp_hdr {
 
 class SocketUtils {
 public:
+    static QString ucharsToStr(char * buff, int length) {
+        char * b = buff;
+        QString s(length, Qt::Uninitialized);
+        for(int i = 0; i < length; i++, b++) {
+//            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
+//            byte ch = (unsigned char)*b;
+//            QChar cch = QChar(ch);
+            char cch = (*b >= 32 && *b <= 128) ? (unsigned char) *b : '.';
+            s[i] = cch;
+        }
+        return s;
+    }
+
     static QString hostToHostName(const QString & ip_str) {
         struct addrinfo * res = 0;
 
@@ -394,7 +405,7 @@ public:
         res.insert(SOCK_ATTR_DEST_IP,               hostToStr(iphdr -> destaddr));
 
         if (raw_payload)
-            res.insert(SOCK_ATTR_PAYLOAD,           BUFF_TEXT(buffer + iphdrlen, size - iphdrlen));
+            res.insert(SOCK_ATTR_PAYLOAD,           ucharsToStr(buffer + iphdrlen, size - iphdrlen));
 
         return iphdrlen;
     }
@@ -423,7 +434,7 @@ public:
         res.insert("TCP Checksum",                  NSTR_HOST_BYTES_ORDER(tcpheader -> checksum));
         res.insert("TCP Urgent Pointer",            NSTR(tcpheader -> urgent_pointer));
         res.insert(SOCK_ATTR_PAYLOAD,
-            BUFF_TEXT(
+            ucharsToStr(
                 buffer + iphdrlen + data_offset,
                 size - iphdrlen - data_offset
             )
@@ -443,8 +454,13 @@ public:
         res.insert("UDP Length",                    NSTR_HOST_BYTES_ORDER(udpheader -> length));
         res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
 
+        QString str = ucharsToStr(
+                    buffer + sizeof(UDP_HDR) + iphdrlen,
+                    size - sizeof(UDP_HDR) - iphdrlen
+                );
+
         res.insert(SOCK_ATTR_PAYLOAD,
-            BUFF_TEXT(
+            ucharsToStr(
                 buffer + sizeof(UDP_HDR) + iphdrlen,
                 size - sizeof(UDP_HDR) - iphdrlen
             )
@@ -474,7 +490,7 @@ public:
         res.insert("ICMP Sequence",                 NSTR_HOST_BYTES_ORDER(icmpheader -> seq));
 
         res.insert(SOCK_ATTR_PAYLOAD,
-            BUFF_TEXT(
+            ucharsToStr(
                 buffer + sizeof(ICMP_HDR) + iphdrlen,
                 size - sizeof(ICMP_HDR) - iphdrlen
             )
