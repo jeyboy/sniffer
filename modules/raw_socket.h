@@ -383,34 +383,14 @@ public:
 //        return new_sock;
 //    }
 
-//    void packetDecodeLength(IPHeader * hdr) {
-//        unsigned short lowbyte = hdr -> length >> 8;
-//        unsigned short hibyte = hdr -> length << 8;
-//        hdr -> length = hibyte + lowbyte;
-//    }
-
     QHash<QString, QString> packetSniff() {
-//        IPHeader * hdr;
         int count = recv(_socket, buffer, sizeof(buffer), MSG_PEEK);
 //        recvfrom(SOCKET s,char *buf,int len,int flags,struct sockaddr *from,int *fromlen);
 
-        if (count > 0/* && (unsigned int)count >= sizeof(IPHeader)*/) {
+        if (count > 0)
             return packetProcess(buffer, count);
-
-//            buffer[count] = '\0';
-//            hdr = (IPHeader *)malloc(MAX_PACKET_SIZE);
-//            memcpy(hdr, buffer, MAX_PACKET_SIZE);
-
-//            packetDecodeLength(hdr);
-
-//            return hdr;
-        }
         else return stubData();
     }
-
-//    void packetFree(IPHeader * packet) {
-//        free(packet);
-//    }
 
     // mixed mode
     bool enablePromMode(bool enable = true) {
@@ -448,15 +428,17 @@ private:
 
         switch (iphdr -> protocol) {
             case IPPROTO_ICMP: return parseIcmpPacket(buffer, size);
-            case IPPROTO_IGMP: return stubData();
             case IPPROTO_TCP: return parseTcpPacket(buffer, size);
             case IPPROTO_UDP: return parseUdpPacket(buffer, size);
 
-            default: return stubData();
+            default:
+                QHash<QString, QString> res = stubData();
+                parseIpHeader(buffer, size, res, true);
+                return res;
         }
     }
 
-    void parseIpHeader(char * buffer, QHash<QString, QString> & res) {
+    void parseIpHeader(char * buffer, int size, QHash<QString, QString> & res, bool raw_payload = false) {
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
 
@@ -474,11 +456,15 @@ private:
 
         res.insert("Source IP",                     hostToStr(iphdr -> srcaddr));
         res.insert("Destination IP",                hostToStr(iphdr -> destaddr));
+
+        if (raw_payload) {
+            res.insert("Raw Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
+        }
     }
 
     QHash<QString, QString> parseTcpPacket(char * buffer, int size) {
         QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, res);
+        parseIpHeader(buffer, size, res);
 
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
@@ -513,7 +499,7 @@ private:
 
     QHash<QString, QString> parseUdpPacket(char * buffer, int size) {
         QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, res);
+        parseIpHeader(buffer, size, res);
 
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
@@ -537,7 +523,7 @@ private:
 
     QHash<QString, QString> parseIcmpPacket(char * buffer, int size) {
         QHash<QString, QString> res = stubData();
-        parseIpHeader(buffer, res);
+        parseIpHeader(buffer, size, res);
 
         IPV4_HDR * iphdr = (IPV4_HDR *)buffer;
         unsigned short iphdrlen = iphdr -> header_len * 4;
@@ -589,29 +575,6 @@ private:
 
 //        //Return the value (inversed)
 //        return (unsigned short)(~chksum);
-//    }
-
-//    bool initHostInfo() {
-//        gethostname(hostname, sizeof(hostname));
-//        host_info = gethostbyname(hostname);
-
-//        if (host_info == NULL) {
-//            int dwError = WSAGetLastError();
-//            if (dwError != 0) {
-//                if (dwError == WSAHOST_NOT_FOUND) {
-//                    err = "Host info error: Host not found";
-//                    return false;
-//                } else if (dwError == WSANO_DATA) {
-//                    err = "Host info error: No data record found";
-//                    return false;
-//                } else {
-//                    err = "Host info error: " + QString::number(WSAGetLastError());
-//                    return false;
-//                }
-//            }
-//        }
-
-//        return true;
 //    }
 
     bool initSocketAddr(const QString & ip, int port = -1) {
