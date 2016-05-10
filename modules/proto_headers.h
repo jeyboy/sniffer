@@ -109,7 +109,7 @@ typedef struct icmp_hdr {
 #define ULONG_BYTE2(u) ((u & 0xFF00) >> 8)
 #define ULONG_BYTE1(u) (u & 0xFF)
 
-#define TIMESTAMP_STR QDateTime::currentDateTime().toString()
+#define TIMESTAMP_STR QDateTime::currentDateTime().time().toString()
 
 #define SOCK_ATTR_TIMESTAMP QStringLiteral("Timestamp")
 #define SOCK_ATTR_NUM_PROTOCOL QStringLiteral("NProtocol")
@@ -120,10 +120,6 @@ typedef struct icmp_hdr {
 #define SOCK_ATTR_SRC QStringLiteral("Source")
 #define SOCK_ATTR_DEST QStringLiteral("Destination")
 #define SOCK_ATTR_PAYLOAD QStringLiteral("Payload")
-
-#define SOCK_STAT_INCOME QStringLiteral("-I")
-#define SOCK_STAT_OUTCOME QStringLiteral("-O")
-
 
 class SocketUtils {
 public:

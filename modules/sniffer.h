@@ -85,24 +85,21 @@ class Sniffer : public QObject {
 
 signals:
     void sendPacket(QHash<QString, QString>);
-public slots:
+protected slots:
     void procPacket(char * data, int length) {
         QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
 
-        protocol_counters[attrs[SOCK_ATTR_PROTOCOL]] = protocol_counters.value(attrs[SOCK_ATTR_PROTOCOL], 0) + 1;
+        protocol_counters[attrs[SOCK_ATTR_PROTOCOL]]++;
 
         QString dest_ip = attrs[SOCK_ATTR_DEST_IP];
         bool income = local_ips.contains(dest_ip);
 
-        direction_counters[income] = direction_counters.value(income, 0) + 1;
+        direction_counters[income]++;
 
         attrs.insert(SOCK_ATTR_DIRECTION,               income ? QStringLiteral("in") : QStringLiteral("out"));
 
-        attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
-        attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
-
-        attrs.insert(SOCK_STAT_INCOME,                  UNSTR(direction_counters[true]));
-        attrs.insert(SOCK_STAT_OUTCOME,                 UNSTR(direction_counters[false]));
+//        attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
+//        attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
 
         free(data);
         emit sendPacket(attrs);
@@ -110,6 +107,10 @@ public slots:
 public:
     Sniffer(QObject * parent) : QObject(parent) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
+    }
+
+    QString stat() {
+        return QStringLiteral("income: %1 ||| outcome: %2").arg(direction_counters[true]).arg(direction_counters[false]);
     }
 
     void start(const char * packetSlot, const char * errorSlot, int port = -1) {

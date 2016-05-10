@@ -18,42 +18,41 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
-    QString stat = QStringLiteral("income: %1 ||| outcome: %2").arg(attrs.take(QStringLiteral("-I")), attrs.take(QStringLiteral("-O")));
-    setWindowTitle(stat);
+    setWindowTitle(sniffer -> stat());
 
     int row = ui -> table -> rowCount();
     ui -> table -> insertRow(row);
 
-    QTableWidgetItem * timew = new QTableWidgetItem(attrs["Timestamp"]);
-    timew -> setData(-1, attrs["Payload"]);
+    QTableWidgetItem * timew = new QTableWidgetItem(attrs[SOCK_ATTR_TIMESTAMP]);
+//    timew -> setData(-1, attrs["Payload"]);
     ui -> table -> setItem(row, 0, timew);
 
-    QTableWidgetItem * directw = new QTableWidgetItem(attrs["Direction"]);
+    QTableWidgetItem * directw = new QTableWidgetItem(attrs[SOCK_ATTR_DIRECTION]);
     ui -> table -> setItem(row, 1, directw);
 
-    QTableWidgetItem * protow = new QTableWidgetItem(attrs["Protocol"]);
+    QTableWidgetItem * protow = new QTableWidgetItem(attrs[SOCK_ATTR_PROTOCOL]);
     ui -> table -> setItem(row, 2, protow);
 
-    QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs["Source IP"]);
+    QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs[SOCK_ATTR_SRC_IP]);
     ui -> table -> setItem(row, 3, sourceipw);
 
-    QTableWidgetItem * destipw = new QTableWidgetItem(attrs["Destination IP"]);
+    QTableWidgetItem * destipw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST_IP]);
     ui -> table -> setItem(row, 4, destipw);
 
-    QTableWidgetItem * sourcew = new QTableWidgetItem(attrs["Source"]);
+    QTableWidgetItem * sourcew = new QTableWidgetItem(attrs[SOCK_ATTR_SRC]);
     ui -> table -> setItem(row, 5, sourcew);
 
-    QTableWidgetItem * destw = new QTableWidgetItem(attrs["Destination"]);
+    QTableWidgetItem * destw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST]);
     ui -> table -> setItem(row, 6, destw);
 
-    QTableWidgetItem * payw = new QTableWidgetItem(attrs["Payload"]);
+    QTableWidgetItem * payw = new QTableWidgetItem(attrs[SOCK_ATTR_PAYLOAD]);
     ui -> table -> setItem(row, 7, payw);
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();
     ui -> table -> insertRow(row);
 
-    QTableWidgetItem * timew = new QTableWidgetItem(QDateTime::currentDateTime().toString());
+    QTableWidgetItem * timew = new QTableWidgetItem(TIMESTAMP_STR);
     timew -> setBackgroundColor(Qt::red);
     ui -> table -> setItem(row, 0, timew);
 
