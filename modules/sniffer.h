@@ -43,77 +43,76 @@
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrentRun>
 
-#include "raw_socket.h"
+#include "sniffer_wrapper.h"
 
 class Sniffer : public QObject {
     Q_OBJECT
 
-    QHash<QString, QFutureWatcher<void> *> servers;
-    QHash<QString, RawSocket *> sockets;
+    QHash<QString, SnifferSocketWrapper *> wrappers;
 
     int outcome, income;
-signals:
-    void packetReceived(const QHash<QString, QString> & attrs);
-    void error(QString message);
 
+    void registerWrapper(QHash<QString, bool> ips, const char * packetSlot, const char * errorSlot, const QString & ip = QString(), int port = -1) {
+        SnifferSocketWrapper * wrapper = new SnifferSocketWrapper(this);
+        wrapper -> instantiate(ips, parent(), packetSlot, errorSlot, ip, port);
+        wrappers.insert(ip, wrapper);
+
+        QThread * thread = new QThread();
+
+        connect(thread, SIGNAL(started()), wrapper, SLOT(process()));
+        connect(wrapper, SIGNAL(finished()), thread, SLOT(quit()));
+        connect(this, SIGNAL(stopAll()), wrapper, SLOT(stop()));
+        connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+        wrapper -> moveToThread(thread);
+        thread -> start(QThread::TimeCriticalPriority);
+    }
+
+signals:
+    void stopAll();
+
+public slots:
+    void updateStat(int income_val, int outcome_val) {
+        income += income_val;
+        outcome += outcome_val;
+    }
 public:
     QString stat() { return QStringLiteral("income: ") + QString::number(income) + QStringLiteral(" ||| outcome: ") + QString::number(outcome); }
 
-    Sniffer(QObject * parent, int port = -1) : QObject(parent), outcome(0), income(0) {
+    Sniffer(QObject * parent, const char * packetSlot, const char * errorSlot, int port = -1) : QObject(parent), outcome(0), income(0) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
 
         QStringList hosts = RawSocket::hostsList();
+        QHash<QString, bool> ips;
+
+//        registerSocket(QString(), port);
 
         for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++) {
-            RawSocket * sock = new RawSocket();
-            if (sock -> binding(*h, port)) {
-                if (!sock -> enablePromMode())
-                    emit error(sock -> error());
-                sock -> enableIncludeHeader(true);
-                sock -> enableBlocking(false);
-            }
-
-            if (!sock -> error().isEmpty())
-                emit error(sock -> error());
-            else {
-                sockets.insert(*h, sock);
-
-                QFutureWatcher<void> * server = new QFutureWatcher<void>();
-                server -> setFuture(QtConcurrent::run(this, &Sniffer::checkPackets, sock, server));
-                servers.insert(*h, server);
-            }
+            ips.insert(*h, true);
+//            registerSocket(*h, port);
         }
+
+        registerWrapper(ips, packetSlot, errorSlot, hosts.first(), port);
     }
 
     ~Sniffer() {
-        for(QHash<QString, QFutureWatcher<void> *>::Iterator it = servers.begin(); it != servers.end(); it++) {
-            QFutureWatcher<void> * server = it.value();
-
-            if (server && server -> isRunning()) {
-                server -> cancel();
-                server -> waitForFinished();
-            }
-        }
-
-        for(QHash<QString, RawSocket *>::Iterator it = sockets.begin(); it != sockets.end(); it++) {
-            delete it.value();
-        }
+        emit stopAll();
     }
 
-    void checkPackets(RawSocket * sock, QFutureWatcher<void> * initiator) {
-        while(!initiator -> isCanceled()) {
-            QHash<QString, QString> attrs = sock -> packetSniff();
-            if (!attrs.isEmpty()) {
-                if (sockets.contains(attrs["Destination IP"]))
-                    income++;
-                else
-                    outcome++;
+//    void checkPackets(RawSocket * sock, QFutureWatcher<void> * initiator) {
+//        while(!initiator -> isCanceled()) {
+//            QHash<QString, QString> attrs = sock -> packetSniff();
+//            if (!attrs.isEmpty()) {
+//                if (addresses.contains(attrs["Destination IP"]))
+//                    income++;
+//                else
+//                    outcome++;
 
-                emit packetReceived(attrs);
-//                QThread::msleep(50);
-            }
-        }
-    }
+//                emit packetReceived(attrs);
+////                QThread::usleep(5);
+//            }
+//        }
+//    }
 };
 
 #endif // SNIFFER

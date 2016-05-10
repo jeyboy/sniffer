@@ -23,7 +23,8 @@ HEADERS  += mainwindow.h \
     modules/sniffer.h \
     modules/raw_socket.h \
     modules/proto_headers.h \
-    modules/proto_defines.h
+    modules/proto_defines.h \
+    modules/sniffer_wrapper.h
 
 FORMS    += mainwindow.ui
 

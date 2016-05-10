@@ -1,6 +1,7 @@
 #ifndef RAW_SOCKET
 #define RAW_SOCKET
 
+#include <qobject.h>
 #include <qstring.h>
 #include <qhash.h>
 
@@ -27,8 +28,11 @@
 #define NSTR_HOST_BYTES_ORDER(num) NSTR(ntohs(num))
 #define NLSTR_HOST_BYTES_ORDER(num) NSTR(ntohl(num))
 
-class RawSocket {
+class RawSocket : public QObject {
+    Q_OBJECT
+
     bool initiated, ready;
+    mutable bool blocked;
 
     int af_type;
 
@@ -36,58 +40,13 @@ class RawSocket {
     SOCKADDR_IN	socket_address;
 
     char buffer[MAX_PACKET_SIZE];  // 64 Kb
-    QString err;
 
     QHash<unsigned char, int> counters;
+signals:
+    void error(QString);
+    void packetReady(QHash<QString, QString>);
+
 public:
-//    static DWORD GetClientPid(SOCKET client) {
-//        DWORD pid = 0;
-
-//        sockaddr_in ServerAddr = {0};
-//        int ServerAddrSize = sizeof(ServerAddr);
-
-//        sockaddr_in ClientAddr = {0};
-//        int ClientAddrSize = sizeof(ClientAddr);
-
-//        if ((getsockname(client, (sockaddr*)&ServerAddr, &ServerAddrSize) == 0) &&
-//            (getpeername(client, (sockaddr*)&ClientAddr, &ClientAddrSize) == 0))
-//        {
-//            PMIB_TCPTABLE2 TcpTable = NULL;
-//            ULONG TcpTableSize = 0;
-//            ULONG result;
-
-//            do {
-//                result = GetTcpTable2(TcpTable, &TcpTableSize, TRUE);
-//                if (result != ERROR_INSUFFICIENT_BUFFER)
-//                    break;
-
-//                LocalFree(TcpTable);
-//                TcpTable = (PMIB_TCPTABLE2) LocalAlloc(LMEM_FIXED, TcpTableSize);
-//            }
-//            while (TcpTable != NULL);
-
-//            if (result == NO_ERROR) {
-//                for (DWORD dw = 0; dw < TcpTable->dwNumEntries; ++dw) {
-//                    PMIB_TCPROW2 row = &(TcpTable->table[dw]);
-
-//                    if ((row->dwState == MIB_TCP_STATE_ESTAB) &&
-//                        (row->dwLocalAddr == ClientAddr.sin_addr.s_addr) &&
-//                        ((row->dwLocalPort & 0xFFFF) == ClientAddr.sin_port) &&
-//                        (row->dwRemoteAddr == ServerAddr.sin_addr.s_addr) &&
-//                        ((row->dwRemotePort & 0xFFFF) == ServerAddr.sin_port))
-//                    {
-//                        pid = row -> dwOwningPid;
-//                        break;
-//                    }
-//                }
-//            }
-
-//            LocalFree(TcpTable);
-//        }
-
-//        return pid;
-//    }
-
     static QString hostToHostName(unsigned long host_ip) {
         struct addrinfo * res = 0;
         QString ip_str = hostToStr(host_ip);
@@ -164,7 +123,6 @@ public:
             case 54: return "NARP";
             case 55: return "MOBILE";
             case 56: return "TLSP";
-// Using Kryptonet key management
             case 57: return "SKIP";
             case 58: return "IPv6-ICMP";
             case 59: return "IPv6-NoNxt";
@@ -320,7 +278,7 @@ public:
         return list;
     }
 
-    QString error() const { return err; }
+    bool isReady() { return ready; }
 
     //SOCK_STREAM
     RawSocket(int sock_type = SOCK_RAW, int protocol = IPPROTO_IP, int af = AF_INET) : ready(false), af_type(af), _socket(INVALID_SOCKET) {
@@ -328,7 +286,7 @@ public:
         initiated = WSAStartup(MAKEWORD(2,2), &wsaData) == 0;
 
         if (!initiated) {
-            err = "WSAStartup error: " + QString::number(WSAGetLastError());
+            emit error("WSAStartup error: " + QString::number(WSAGetLastError()));
             return;
         }
 
@@ -337,7 +295,7 @@ public:
         initiated = _socket != INVALID_SOCKET;
 
         if (!initiated)
-            err = "Socket error: " + QString::number(WSAGetLastError());
+            emit error("Socket error: " + QString::number(WSAGetLastError()));
     }
 
     ~RawSocket() {
@@ -357,35 +315,53 @@ public:
         ready = bind(_socket, (SOCKADDR *)&socket_address, sizeof(SOCKADDR)) != SOCKET_ERROR;
 
         if (!ready)
-            err = "Socket bind error: " + QString::number(WSAGetLastError());
+            emit error("Socket bind error: " + QString::number(WSAGetLastError()));
 
         return ready;
     }
 
-//    bool listening(int connections_limit = SOMAXCONN) {
-//        if (listen(_socket, connections_limit) == SOCKET_ERROR) {
-//            err = "Socket listening error: " + QString::number(WSAGetLastError());
-//        }
+    void blockableSniffing() {
+        blocked = true;
+        sockaddr_storage sender_addr;
+        int sender_addr_size = sizeof(sender_addr);
 
-//        return true;
-//    }
+        while(blocked) {
+            int count = recvfrom(_socket, buffer, sizeof(buffer), MSG_PEEK, (sockaddr *)&sender_addr, &sender_addr_size);
 
-//    SOCKET getIncoming() {
-//        SOCKET new_sock = accept(_socket, 0, 0);
-//        if (new_sock == INVALID_SOCKET) {
-//            int rc = WSAGetLastError();
-//            if(rc == WSAEWOULDBLOCK)
-//                return 0; // non-blocking call, no request pending
-//            else
-//                throw "Invalid Socket";
-//        }
+            if (count > 0) {
+//                switch (sender_addr.ss_family) {
+//                    case AF_INET: {
+//                        sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);
+//                        break;}
+//                    case AF_INET6: {
+//                        sockaddr_in6 * from = ((struct sockaddr_in6*)&sender_addr);
+//                    break;}
+//                }
 
-//        return new_sock;
-//    }
+                emit packetReady(packetProcess(buffer, count));
+            }
+        }
+    }
+
+    void stopBlockableSniffing() {
+        blocked = false;
+    }
 
     QHash<QString, QString> packetSniff() {
-        int count = recv(_socket, buffer, sizeof(buffer), MSG_PEEK);
-//        recvfrom(SOCKET s,char *buf,int len,int flags,struct sockaddr *from,int *fromlen);
+//        int count = recv(_socket, buffer, sizeof(buffer), MSG_PEEK);
+        sockaddr_storage sender_addr;
+        int sender_addr_size = sizeof(sender_addr);
+
+        int count = recvfrom(_socket, buffer, sizeof(buffer), MSG_PEEK, (sockaddr *)&sender_addr, &sender_addr_size);
+
+//        switch (sender_addr.ss_family) {
+//            case AF_INET: {
+//                sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);
+//                break;}
+//            case AF_INET6: {
+//                sockaddr_in6 * from = ((struct sockaddr_in6*)&sender_addr);
+//            break;}
+//        }
 
         if (count > 0)
             return packetProcess(buffer, count);
@@ -557,41 +533,75 @@ private:
         return res;
     }
 
-//    unsigned short checksum(unsigned short *buf, int size)
-//    {
-//        unsigned long chksum=0;
-
-//        //Calculate the checksum
-//        while (size>1)
-//        {
-//            chksum+=*buf++;
-//            size-=sizeof(unsigned short);
-//        }
-
-//        //If we have one char left
-//        if (size)
-//            chksum+=*(unsigned char*)buf;
-
-//        //Complete the calculations
-//        chksum=(chksum >> 16) + (chksum & 0xffff);
-//        chksum+=(chksum >> 16);
-
-//        //Return the value (inversed)
-//        return (unsigned short)(~chksum);
-//    }
-
     bool initSocketAddr(const QString & ip, int port = -1) {
         ZeroMemory(&socket_address, sizeof(socket_address));
         socket_address.sin_family = af_type;
 
-        if (!ip.isEmpty())
-            socket_address.sin_addr.s_addr = inet_addr(CONST_CHAR(ip));
+        if (!ip.isEmpty()) {
+            unsigned long addr = inet_addr(CONST_CHAR(ip));
+            socket_address.sin_addr.s_addr = addr;
+        }
 
         if (port > 0)
             socket_address.sin_port = htons(port);
 
         return true;
     }
+};
+
+
+
+//    static DWORD GetClientPid(SOCKET client) {
+//        DWORD pid = 0;
+
+//        sockaddr_in ServerAddr = {0};
+//        int ServerAddrSize = sizeof(ServerAddr);
+
+//        sockaddr_in ClientAddr = {0};
+//        int ClientAddrSize = sizeof(ClientAddr);
+
+//        if ((getsockname(client, (sockaddr*)&ServerAddr, &ServerAddrSize) == 0) &&
+//            (getpeername(client, (sockaddr*)&ClientAddr, &ClientAddrSize) == 0))
+//        {
+//            PMIB_TCPTABLE2 TcpTable = NULL;
+//            ULONG TcpTableSize = 0;
+//            ULONG result;
+
+//            do {
+//                result = GetTcpTable2(TcpTable, &TcpTableSize, TRUE);
+//                if (result != ERROR_INSUFFICIENT_BUFFER)
+//                    break;
+
+//                LocalFree(TcpTable);
+//                TcpTable = (PMIB_TCPTABLE2) LocalAlloc(LMEM_FIXED, TcpTableSize);
+//            }
+//            while (TcpTable != NULL);
+
+//            if (result == NO_ERROR) {
+//                for (DWORD dw = 0; dw < TcpTable->dwNumEntries; ++dw) {
+//                    PMIB_TCPROW2 row = &(TcpTable->table[dw]);
+
+//                    if ((row->dwState == MIB_TCP_STATE_ESTAB) &&
+//                        (row->dwLocalAddr == ClientAddr.sin_addr.s_addr) &&
+//                        ((row->dwLocalPort & 0xFFFF) == ClientAddr.sin_port) &&
+//                        (row->dwRemoteAddr == ServerAddr.sin_addr.s_addr) &&
+//                        ((row->dwRemotePort & 0xFFFF) == ServerAddr.sin_port))
+//                    {
+//                        pid = row -> dwOwningPid;
+//                        break;
+//                    }
+//                }
+//            }
+
+//            LocalFree(TcpTable);
+//        }
+
+//        return pid;
+//    }
+
+
+
+
 
 //    void registerApp() {
 //        HKEY hk;
@@ -622,6 +632,31 @@ private:
 
 //        RegCloseKey(hk);
 //    }
-};
+
+
+
+
+//    unsigned short checksum(unsigned short *buf, int size)
+//    {
+//        unsigned long chksum=0;
+
+//        //Calculate the checksum
+//        while (size>1)
+//        {
+//            chksum+=*buf++;
+//            size-=sizeof(unsigned short);
+//        }
+
+//        //If we have one char left
+//        if (size)
+//            chksum+=*(unsigned char*)buf;
+
+//        //Complete the calculations
+//        chksum=(chksum >> 16) + (chksum & 0xffff);
+//        chksum+=(chksum >> 16);
+
+//        //Return the value (inversed)
+//        return (unsigned short)(~chksum);
+//    }
 
 #endif // RAW_SOCKET
