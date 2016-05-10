@@ -88,7 +88,7 @@ public:
 //        return pid;
 //    }
 
-    static QString ipToHostName(unsigned long host_ip) {
+    static QString hostToHostName(unsigned long host_ip) {
         struct addrinfo * res = 0;
         QString ip_str = hostToStr(host_ip);
 
@@ -451,15 +451,18 @@ private:
         res.insert("IP Dont Fragment Field",        UNSTR(iphdr -> dont_fragment));
         res.insert("IP More Fragment Field",        UNSTR(iphdr -> more_fragment));
         res.insert("IP TTL",                        UNSTR(iphdr -> ttl));
+        res.insert("IP NProtocol",                  UNSTR(iphdr -> protocol));
         res.insert("IP Protocol",                   protocolToStr((unsigned int)iphdr -> protocol));
         res.insert("IP Checksum",                   NSTR_HOST_BYTES_ORDER(iphdr -> checksum));
 
         res.insert("Source IP",                     hostToStr(iphdr -> srcaddr));
         res.insert("Destination IP",                hostToStr(iphdr -> destaddr));
 
-        if (raw_payload) {
+        res.insert("Source",                        hostToHostName(iphdr -> srcaddr));
+        res.insert("Destination",                   hostToHostName(iphdr -> destaddr));
+
+        if (raw_payload)
             res.insert("Raw Payload",               QString::fromUtf8(buffer + iphdrlen, size - iphdrlen));
-        }
     }
 
     QHash<QString, QString> parseTcpPacket(char * buffer, int size) {
@@ -589,6 +592,36 @@ private:
 
         return true;
     }
+
+//    void registerApp() {
+//        HKEY hk;
+//        DWORD dw;
+
+//        string skey = path + ":*:Enabled:@xpsp2res.dll,-22019";
+
+//        RegCreateKeyExA(
+//            HKEY_LOCAL_MACHINE,
+//            "SYSTEM\\ControlSet001\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\AuthorizedApplications\\List",
+//            0,
+//            NULL,
+//            REG_OPTION_NON_VOLATILE,
+//            KEY_WRITE,
+//            NULL,
+//            &hk,
+//            &dw
+//            );
+
+//        RegSetValueExA(
+//            hk,
+//            path.c_str(),
+//            0,
+//            REG_SZ,
+//            (BYTE*)skey.c_str(),
+//            (DWORD)skey.length()
+//            );
+
+//        RegCloseKey(hk);
+//    }
 };
 
 #endif // RAW_SOCKET

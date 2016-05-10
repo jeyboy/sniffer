@@ -23,6 +23,8 @@ void MainWindow::packetInfoReceived(const QHash<QString, QString> & attrs) {
 
 //    QString text = QString("<span style='color: green'>%1 ::: %2 ::: %3 ::: %4 ::: %5</span>").arg(ver, protocol, from, to, body);
     ui -> log -> appendHtml(html);
+
+    setWindowTitle(sniffer -> stat());
 }
 void MainWindow::errorReceived(QString message) {
     qDebug() << "ERR:" << message;
