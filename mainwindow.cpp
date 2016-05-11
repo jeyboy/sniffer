@@ -3,7 +3,7 @@
 
 #include <qmessagebox.h>
 
-MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), filter_in_proc(false), filter(QString()) {
+MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false), filter_in_proc(false), filter(QString()) {
     ui -> setupUi(this);
 
     bar = new QToolBar(ui -> panel);
@@ -11,6 +11,8 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     filter_info = new QLabel("No filters");
     ui -> statusBar -> addWidget(filter_info);
+
+    initAddProtoPanel();
 
     QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
 
@@ -28,23 +30,85 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
-void MainWindow::registerProtoBtn(const QString & proto) {
+void MainWindow::initAddProtoPanel() {
+    newProtoBtn();
+
+    QWidget * add_proto_panel = new QWidget();
+
+    protos_list = new QComboBox(add_proto_panel);
+
+    QStringList protos;
+    for(int i = 0; i <= 140; i++)
+        protos << SocketUtils::protocolToStr(i);
+
+    protos_list -> insertItems(0, protos);
+
+    QWidget * buttons = new QWidget(add_proto_panel);
+    QVBoxLayout * vl = new QVBoxLayout(buttons);
+
+    QPushButton * okBtn = new QPushButton("Add", buttons);
+    vl -> addWidget(okBtn);
+    connect(okBtn, SIGNAL(clicked()), this, SLOT(protoAddBtnTriggered()));
+
+    QPushButton * cancelBtn = new QPushButton("Cancel", buttons);
+    vl -> addWidget(cancelBtn);
+    connect(cancelBtn, SIGNAL(clicked()), this, SLOT(protoCancelBtnTriggered()));
+
+    vl -> setMargin(0); vl -> setSpacing(0);
+
+    QHBoxLayout * hl = new QHBoxLayout(add_proto_panel);
+    hl -> addWidget(protos_list, 1);
+    hl -> addWidget(buttons, 0);
+    hl -> setMargin(0); hl -> setSpacing(0);
+
+    (new_proto_panel = bar -> addWidget(add_proto_panel)) -> setVisible(false);
+    bar -> addSeparator();
+}
+
+void MainWindow::newProtoBtn() {
+    QWidget * new_proto_btn_panel = new QWidget(bar);
+    QVBoxLayout * vl = new QVBoxLayout(new_proto_btn_panel);
+
+    QCheckBox * ignore_other_proto_check = new QCheckBox("Ignore other proto");
+    ignore_other_proto_check -> setMinimumHeight(24);
+    vl -> addWidget(ignore_other_proto_check);
+    connect(ignore_other_proto_check, SIGNAL(clicked(bool)), this, SLOT(cut_proto_opt_clicked(bool)));
+
+    QPushButton * btn = new QPushButton("Add proto filter", bar);
+    btn -> setMinimumHeight(24);
+    vl -> addWidget(btn);
+    connect(btn, SIGNAL(clicked()), this, SLOT(newProtoBtnTriggered()));
+
+    new_proto_panel_btn = bar -> addWidget(new_proto_btn_panel);
+}
+
+QPushButton * MainWindow::registerProtoBtn(const QString & proto, QAction * before_action) {
+    if (proto.isEmpty()) return 0;
+
     QPushButton * btn = proto_btns.value(proto, 0);
 
     if (!btn) {
-        btn = new QPushButton(bar);
+        btn = new QPushButton(proto, bar);
         btn -> setCheckable(true);
         btn -> setChecked(true);
         btn -> setProperty("amount", 0);
+        btn -> setMinimumHeight(44);
         proto_btns.insert(proto, btn);
-        bar -> addWidget(btn);
+        if (before_action)
+            bar -> insertWidget(before_action, btn);
+        else
+            bar -> addWidget(btn);
         btn -> setProperty("proto", proto);
         connect(btn, SIGNAL(clicked(bool)), this, SLOT(protoBtnTriggered(bool)));
     }
 
+    return btn;
+}
 
+void MainWindow::iterProtoBtnText(QPushButton * btn) {
+    QString proto = btn -> property("proto").toString();
     int val = btn -> property("amount").toInt() + 1;
-    btn -> setText(QStringLiteral("%1 (%2)").arg(proto).arg(/*sniffer -> protoStat(proto)*/val));
+    btn -> setText(QStringLiteral("%1\n(%2)").arg(proto).arg(/*sniffer -> protoStat(proto)*/val));
     btn -> setProperty("amount", val);
 }
 
@@ -67,6 +131,9 @@ void MainWindow::setInfo() {
 
 void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     setWindowTitle(sniffer -> stat());
+
+    if (ignore_other_proto && !proto_btns.contains(attrs[SOCK_ATTR_PROTOCOL]))
+        return;
 
     bool hidden = false;
 
@@ -108,7 +175,8 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     QTableWidgetItem * payw = new QTableWidgetItem(attrs[SOCK_ATTR_PAYLOAD]);
     ui -> table -> setItem(row, (payload_col = 8), payw);
 
-    registerProtoBtn(attrs[SOCK_ATTR_PROTOCOL]);
+    QPushButton * btn = registerProtoBtn(attrs[SOCK_ATTR_PROTOCOL]);
+    iterProtoBtnText(btn);
 
     ui -> table -> setRowHidden(row, hidden);
 }
@@ -134,6 +202,21 @@ void MainWindow::protoBtnTriggered(bool on) {
         proto_filters[proto] = false;
 
     on_filterBtn_clicked();
+}
+
+void MainWindow::newProtoBtnTriggered() {
+    new_proto_panel -> setVisible(true);
+    new_proto_panel_btn -> setVisible(false);
+}
+
+void MainWindow::protoAddBtnTriggered() {
+    registerProtoBtn(protos_list -> currentText());
+    protoCancelBtnTriggered();
+}
+
+void MainWindow::protoCancelBtnTriggered() {
+    new_proto_panel -> setVisible(false);
+    new_proto_panel_btn -> setVisible(true);
 }
 
 void MainWindow::on_actionStart_triggered() {
@@ -197,4 +280,8 @@ void MainWindow::on_filterBtn_clicked() {
 
 void MainWindow::on_cut_opt_clicked(bool checked) {
     ignore_invalid = checked;
+}
+
+void MainWindow::cut_proto_opt_clicked(bool checked) {
+    ignore_other_proto = checked;
 }

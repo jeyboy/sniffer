@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <qpushbutton.h>
 #include <qlabel.h>
+#include <qcombobox.h>
 
 #include "modules/sniffer.h"
 
@@ -15,9 +16,12 @@ class MainWindow : public QMainWindow {
     QHash<QString, QPushButton *> proto_btns;
     QHash<QString, bool> proto_filters;
 
-    void registerProtoBtn(const QString & proto);
+    void newProtoBtn();
+    QPushButton * registerProtoBtn(const QString & proto, QAction * before_action = 0);
+    void iterProtoBtnText(QPushButton * btn);
     void setInfo();
     void procFilter();
+    void initAddProtoPanel();
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
@@ -27,6 +31,10 @@ public slots:
 
 private slots:
     void protoBtnTriggered(bool);
+    void newProtoBtnTriggered();
+
+    void protoAddBtnTriggered();
+    void protoCancelBtnTriggered();
 
     void on_actionStart_triggered();
 
@@ -41,14 +49,17 @@ private slots:
     void on_filterBtn_clicked();
 
     void on_cut_opt_clicked(bool checked);
+    void cut_proto_opt_clicked(bool checked);
 
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
     QToolBar * bar;
     QLabel * filter_info;
+    QComboBox * protos_list;
 
-    bool ignore_invalid, filter_in_proc;
+    QAction * new_proto_panel, * new_proto_panel_btn;
+    bool ignore_invalid, ignore_other_proto, filter_in_proc;
     int protocol_col, payload_col;
     QString filter;
 };
