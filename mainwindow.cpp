@@ -9,6 +9,9 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     bar = new QToolBar(ui -> panel);
     ui -> panel -> layout() -> addWidget(bar);
 
+    filter_info = new QLabel("No filters");
+    ui -> statusBar -> addWidget(filter_info);
+
     QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
 
     ui -> table -> setColumnCount(headers.length());
@@ -30,13 +33,36 @@ void MainWindow::registerProtoBtn(const QString & proto) {
 
     if (!btn) {
         btn = new QPushButton(bar);
+        btn -> setCheckable(true);
+        btn -> setChecked(true);
+        btn -> setProperty("amount", 0);
         proto_btns.insert(proto, btn);
-        QAction * act = bar -> addWidget(btn);
-        act -> setProperty("proto", proto);
-        connect(act, SIGNAL(triggered(bool)), this, SLOT(protoBtnTriggered(bool)));
+        bar -> addWidget(btn);
+        btn -> setProperty("proto", proto);
+        connect(btn, SIGNAL(clicked(bool)), this, SLOT(protoBtnTriggered(bool)));
     }
 
-    btn -> setText(QStringLiteral("%1 (%2)").arg(proto).arg(sniffer -> protoStat(proto)));
+
+    int val = btn -> property("amount").toInt() + 1;
+    btn -> setText(QStringLiteral("%1 (%2)").arg(proto).arg(/*sniffer -> protoStat(proto)*/val));
+    btn -> setProperty("amount", val);
+}
+
+void MainWindow::setInfo() {
+    QString output_text;
+
+    if (!filter.isEmpty())
+        output_text = "Filter by payload; ";
+
+    QString proto_state;
+    for(QHash<QString, bool>::Iterator it = proto_filters.begin(); it != proto_filters.end(); it++)
+        if (!it.value())
+            proto_state += " " + it.key();
+
+    if (!proto_state.isEmpty())
+        output_text += "Filter by protocols: " + proto_state;
+
+    filter_info -> setText(output_text);
 }
 
 void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
@@ -47,7 +73,7 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     if (!filter.isEmpty())
         hidden = !attrs[SOCK_ATTR_PAYLOAD].contains(filter, Qt::CaseInsensitive);
 
-    if (!hidden && proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], false))
+    if (!hidden && !proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], true))
         hidden = true;
 
     if (ignore_invalid && hidden) return;
@@ -100,8 +126,8 @@ void MainWindow::errorReceived(QString message) {
 }
 
 void MainWindow::protoBtnTriggered(bool on) {
-    QAction * act = (QAction *)sender();
-    QString proto = act -> property("proto").toString();
+    QPushButton * btn = (QPushButton *)sender();
+    QString proto = btn -> property("proto").toString();
     proto_filters[proto] = on;
     on_filterBtn_clicked();
 }
@@ -130,16 +156,19 @@ void MainWindow::on_actionReceiver_triggered(bool checked) {
 void MainWindow::on_filterBtn_clicked() {
     filter = ui -> text_filter -> text();
 
+    setInfo();
+
     bool payload_filter_on = !filter.isEmpty();
     bool proto_filter_on = !proto_filters.isEmpty();
     int payload_column = ui -> table -> columnCount() - 1;
+    int rows_limit = ui -> table -> rowCount();
 
-    for(int row = 0; row < ui -> table -> rowCount(); row++) {
+    for(int row = 0; row < rows_limit; row++) {
         bool hidden = payload_filter_on && !ui -> table -> item(row, payload_column) -> text().contains(filter, Qt::CaseInsensitive);
 
         if (!hidden && proto_filter_on) {
             QString proto = ui -> table -> item(row, protocol_col) -> text();
-            hidden = proto_filters.value(proto, false);
+            hidden = !proto_filters.value(proto, true);
         }
 
         ui -> table -> setRowHidden(row, hidden);

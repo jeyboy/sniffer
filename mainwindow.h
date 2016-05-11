@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <qpushbutton.h>
+#include <qlabel.h>
 
 #include "modules/sniffer.h"
 
@@ -15,6 +16,7 @@ class MainWindow : public QMainWindow {
     QHash<QString, bool> proto_filters;
 
     void registerProtoBtn(const QString & proto);
+    void setInfo();
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
@@ -43,6 +45,7 @@ private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
     QToolBar * bar;
+    QLabel * filter_info;
 
     bool ignore_invalid;
     int protocol_col, payload_col;
