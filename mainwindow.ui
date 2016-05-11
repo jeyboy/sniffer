@@ -104,6 +104,9 @@
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
           <widget class="QCheckBox" name="cut_opt">
+           <property name="styleSheet">
+            <string notr="true">color: red; font-weight: bold;</string>
+           </property>
            <property name="text">
             <string>ignore not valid</string>
            </property>
