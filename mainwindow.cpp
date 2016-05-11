@@ -3,8 +3,12 @@
 
 #include <qmessagebox.h>
 
-MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false), filter_in_proc(false), filter(QString()) {
+MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
+    filter_in_proc(false), filter(QString()), src_col(5), dst_col(6)
+{
     ui -> setupUi(this);
+
+    setWindowTitle("Sniffer");
 
     bar = new QToolBar(ui -> panel);
     ui -> panel -> layout() -> addWidget(bar);
@@ -24,6 +28,9 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     ui -> table -> setSelectionBehavior(QAbstractItemView::SelectRows);
 
     sniffer = new Sniffer(this);
+
+    on_actionSender_triggered(false);
+    on_actionReceiver_triggered(false);
 }
 
 MainWindow::~MainWindow() {
@@ -164,10 +171,10 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, 4, destipw);
 
     QTableWidgetItem * sourcew = new QTableWidgetItem(attrs[SOCK_ATTR_SRC]);
-    ui -> table -> setItem(row, 5, sourcew);
+    ui -> table -> setItem(row, (src_col = 5), sourcew);
 
     QTableWidgetItem * destw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST]);
-    ui -> table -> setItem(row, 6, destw);
+    ui -> table -> setItem(row, (dst_col = 6), destw);
 
     QTableWidgetItem * lengw = new QTableWidgetItem(attrs[SOCK_ATTR_LENGTH]);
     ui -> table -> setItem(row, 7, lengw);
@@ -234,10 +241,12 @@ void MainWindow::on_table_cellDoubleClicked(int row, int /*column*/) {
 
 void MainWindow::on_actionSender_triggered(bool checked) {
     sniffer -> enableSenderIpResolving(checked);
+    ui -> table -> setColumnHidden(src_col, !checked);
 }
 
 void MainWindow::on_actionReceiver_triggered(bool checked) {
     sniffer -> enableReceiverIpResolving(checked);
+    ui -> table -> setColumnHidden(dst_col, !checked);
 }
 
 void MainWindow::procFilter() {

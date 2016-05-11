@@ -60,7 +60,7 @@ private:
 
     QAction * new_proto_panel, * new_proto_panel_btn;
     bool ignore_invalid, ignore_other_proto, filter_in_proc;
-    int protocol_col, payload_col;
+    int protocol_col, payload_col, src_col, dst_col;
     QString filter;
 };
 
