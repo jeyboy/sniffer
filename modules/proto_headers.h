@@ -139,8 +139,14 @@ public:
 
     static QString hostToHostName(const QString & ip_str) {
         struct addrinfo * res = 0;
+        struct addrinfo hints;
 
-        if (getaddrinfo(CONST_CHAR(ip_str), 0, 0, &res) == 0) {
+        memset(&hints, 0, sizeof hints); // make sure the struct is empty
+        hints.ai_family = AF_UNSPEC;     // don't care IPv4 or IPv6
+        hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
+        hints.ai_flags = AI_PASSIVE;     // fill in my IP for me
+
+        if (getaddrinfo(CONST_CHAR(ip_str), 0, &hints, &res) == 0) {
             char host[NI_MAXHOST];
 
             // get first entry only
