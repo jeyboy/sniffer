@@ -3,7 +3,7 @@
 
 #include <qmessagebox.h>
 
-MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), filter(QString()) {
+MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), filter(QString()) {
     ui -> setupUi(this);
 
     bar = new QToolBar(ui -> panel);
@@ -42,6 +42,16 @@ void MainWindow::registerProtoBtn(const QString & proto) {
 void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     setWindowTitle(sniffer -> stat());
 
+    bool hidden = false;
+
+    if (!filter.isEmpty())
+        hidden = !attrs[SOCK_ATTR_PAYLOAD].contains(filter, Qt::CaseInsensitive);
+
+    if (!hidden && proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], false))
+        hidden = true;
+
+    if (ignore_invalid && hidden) return;
+
     int row = ui -> table -> rowCount();
     ui -> table -> insertRow(row);
 
@@ -73,14 +83,6 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, (payload_col = 8), payw);
 
     registerProtoBtn(attrs[SOCK_ATTR_PROTOCOL]);
-
-    bool hidden = false;
-
-    if (!filter.isEmpty())
-        hidden = !attrs[SOCK_ATTR_PAYLOAD].contains(filter, Qt::CaseInsensitive);
-
-    if (!hidden && proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], false))
-        hidden = true;
 
     ui -> table -> setRowHidden(row, hidden);
 }
@@ -142,4 +144,8 @@ void MainWindow::on_filterBtn_clicked() {
 
         ui -> table -> setRowHidden(row, hidden);
     }
+}
+
+void MainWindow::on_cut_opt_clicked(bool checked) {
+    ignore_invalid = checked;
 }

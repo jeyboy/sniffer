@@ -37,11 +37,14 @@ private slots:
 
     void on_filterBtn_clicked();
 
+    void on_cut_opt_clicked(bool checked);
+
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
     QToolBar * bar;
 
+    bool ignore_invalid;
     int protocol_col, payload_col;
     QString filter;
 };
