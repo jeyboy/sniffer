@@ -3,7 +3,7 @@
 
 #include <qmessagebox.h>
 
-MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), filter(QString()) {
+MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), filter_in_proc(false), filter(QString()) {
     ui -> setupUi(this);
 
     bar = new QToolBar(ui -> panel);
@@ -128,7 +128,11 @@ void MainWindow::errorReceived(QString message) {
 void MainWindow::protoBtnTriggered(bool on) {
     QPushButton * btn = (QPushButton *)sender();
     QString proto = btn -> property("proto").toString();
-    proto_filters[proto] = on;
+    if (on)
+        proto_filters.remove(proto);
+    else
+        proto_filters[proto] = false;
+
     on_filterBtn_clicked();
 }
 
@@ -153,11 +157,7 @@ void MainWindow::on_actionReceiver_triggered(bool checked) {
     sniffer -> enableReceiverIpResolving(checked);
 }
 
-void MainWindow::on_filterBtn_clicked() {
-    filter = ui -> text_filter -> text();
-
-    setInfo();
-
+void MainWindow::procFilter() {
     bool payload_filter_on = !filter.isEmpty();
     bool proto_filter_on = !proto_filters.isEmpty();
     int payload_column = ui -> table -> columnCount() - 1;
@@ -171,7 +171,27 @@ void MainWindow::on_filterBtn_clicked() {
             hidden = !proto_filters.value(proto, true);
         }
 
-        ui -> table -> setRowHidden(row, hidden);
+        if (hidden)
+            QMetaObject::invokeMethod(
+                ui -> table, "hideRow", Qt::AutoConnection, Q_ARG(int, row)
+            );
+        else
+            QMetaObject::invokeMethod(
+                ui -> table, "showRow", Qt::AutoConnection, Q_ARG(int, row)
+            );
+    }
+
+    filter_in_proc = false;
+}
+
+void MainWindow::on_filterBtn_clicked() {
+    filter = ui -> text_filter -> text();
+
+    setInfo();
+
+    if (!filter_in_proc) {
+        filter_in_proc = true;
+        QtConcurrent::run(this, &MainWindow::procFilter);
     }
 }
 

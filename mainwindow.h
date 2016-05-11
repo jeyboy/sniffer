@@ -17,6 +17,7 @@ class MainWindow : public QMainWindow {
 
     void registerProtoBtn(const QString & proto);
     void setInfo();
+    void procFilter();
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
@@ -47,7 +48,7 @@ private:
     QToolBar * bar;
     QLabel * filter_info;
 
-    bool ignore_invalid;
+    bool ignore_invalid, filter_in_proc;
     int protocol_col, payload_col;
     QString filter;
 };
