@@ -29,8 +29,8 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     sniffer = new Sniffer(this);
 
-    on_actionSender_triggered(false);
-    on_actionReceiver_triggered(false);
+    on_resolveSenderNameBtn_clicked(false);
+    on_resolveReceiverNameBtn_clicked(false);
 }
 
 MainWindow::~MainWindow() {
@@ -135,11 +135,18 @@ void MainWindow::setInfo() {
 
     QString proto_state;
     for(QHash<QString, bool>::Iterator it = proto_filters.begin(); it != proto_filters.end(); it++)
-        if (!it.value())
-            proto_state += " " + it.key();
+        proto_state += " " + it.key();
 
     if (!proto_state.isEmpty())
         output_text += "Filter by protocols: " + proto_state;
+
+
+    QString direct_state;
+    for(QHash<QString, bool>::Iterator it = direction_filters.begin(); it != direction_filters.end(); it++)
+        direct_state += " " + it.key();
+
+    if (!direct_state.isEmpty())
+        output_text += "Filter by directions: " + direct_state;
 
     filter_info -> setText(output_text);
 }
@@ -238,27 +245,9 @@ void MainWindow::protoCancelBtnTriggered() {
     new_proto_panel_btn -> setVisible(true);
 }
 
-void MainWindow::on_actionStart_triggered() {
-    sniffer -> start(SLOT(packetInfoReceived(QHash<QString,QString>)), SLOT(errorReceived(QString)));
-}
-
-void MainWindow::on_actionStop_triggered() {
-    sniffer -> stop();
-}
-
 void MainWindow::on_table_cellDoubleClicked(int row, int /*column*/) {
     QString payload = ui -> table -> item(row, payload_col) -> text();
     QMessageBox::information(this, "Payload", payload);
-}
-
-void MainWindow::on_actionSender_triggered(bool checked) {
-    sniffer -> enableSenderIpResolving(checked);
-    ui -> table -> setColumnHidden(src_col, !checked);
-}
-
-void MainWindow::on_actionReceiver_triggered(bool checked) {
-    sniffer -> enableReceiverIpResolving(checked);
-    ui -> table -> setColumnHidden(dst_col, !checked);
 }
 
 void MainWindow::procFilter() {
@@ -326,4 +315,24 @@ void MainWindow::on_outcomeBtn_clicked(bool checked) {
         direction_filters.insert(SOCK_DIRECTION_OUT, false);
     else
         direction_filters.remove(SOCK_DIRECTION_OUT);
+}
+
+void MainWindow::on_procBtn_clicked(bool checked) {
+    if (checked) {
+        ui -> procBtn -> setText("Stop");
+        sniffer -> start(SLOT(packetInfoReceived(QHash<QString,QString>)), SLOT(errorReceived(QString)));
+    } else {
+        ui -> procBtn -> setText("Start");
+        sniffer -> stop();
+    }
+}
+
+void MainWindow::on_resolveSenderNameBtn_clicked(bool checked) {
+    sniffer -> enableSenderIpResolving(checked);
+    ui -> table -> setColumnHidden(src_col, !checked);
+}
+
+void MainWindow::on_resolveReceiverNameBtn_clicked(bool checked) {
+    sniffer -> enableReceiverIpResolving(checked);
+    ui -> table -> setColumnHidden(dst_col, !checked);
 }

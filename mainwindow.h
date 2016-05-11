@@ -5,6 +5,7 @@
 #include <qpushbutton.h>
 #include <qlabel.h>
 #include <qcombobox.h>
+#include <qtoolbar.h>
 
 #include "modules/sniffer.h"
 
@@ -38,15 +39,7 @@ private slots:
     void protoAddBtnTriggered();
     void protoCancelBtnTriggered();
 
-    void on_actionStart_triggered();
-
-    void on_actionStop_triggered();
-
     void on_table_cellDoubleClicked(int row, int column);
-
-    void on_actionSender_triggered(bool checked);
-
-    void on_actionReceiver_triggered(bool checked);
 
     void on_filterBtn_clicked();
 
@@ -56,6 +49,12 @@ private slots:
     void on_incomeBtn_clicked(bool checked);
 
     void on_outcomeBtn_clicked(bool checked);
+
+    void on_procBtn_clicked(bool checked);
+
+    void on_resolveSenderNameBtn_clicked(bool checked);
+
+    void on_resolveReceiverNameBtn_clicked(bool checked);
 
 private:
     Ui::MainWindow * ui;
