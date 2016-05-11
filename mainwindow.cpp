@@ -1,14 +1,19 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include <qmessagebox.h>
+
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui -> setupUi(this);
 
-    QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Payload";
+    QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
 
     ui -> table -> setColumnCount(headers.length());
     ui -> table -> setHorizontalHeaderLabels(headers);
     ui -> table -> setSortingEnabled(true);
+
+    ui -> table -> setEditTriggers(QAbstractItemView::NoEditTriggers);
+    ui -> table -> setSelectionBehavior(QAbstractItemView::SelectRows);
 
     sniffer = new Sniffer(this);
 }
@@ -24,7 +29,6 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> insertRow(row);
 
     QTableWidgetItem * timew = new QTableWidgetItem(attrs[SOCK_ATTR_TIMESTAMP]);
-//    timew -> setData(-1, attrs["Payload"]);
     ui -> table -> setItem(row, 0, timew);
 
     QTableWidgetItem * directw = new QTableWidgetItem(attrs[SOCK_ATTR_DIRECTION]);
@@ -45,8 +49,11 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     QTableWidgetItem * destw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST]);
     ui -> table -> setItem(row, 6, destw);
 
+    QTableWidgetItem * lengw = new QTableWidgetItem(attrs[SOCK_ATTR_LENGTH]);
+    ui -> table -> setItem(row, 7, lengw);
+
     QTableWidgetItem * payw = new QTableWidgetItem(attrs[SOCK_ATTR_PAYLOAD]);
-    ui -> table -> setItem(row, 7, payw);
+    ui -> table -> setItem(row, 8, payw);
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();
@@ -67,4 +74,17 @@ void MainWindow::on_actionStart_triggered() {
 
 void MainWindow::on_actionStop_triggered() {
     sniffer -> stop();
+}
+
+void MainWindow::on_table_cellDoubleClicked(int row, int /*column*/) {
+    QString payload = ui -> table -> item(row, ui -> table -> columnCount() - 1) -> text();
+    QMessageBox::information(this, "Payload", payload);
+}
+
+void MainWindow::on_actionSender_triggered(bool checked) {
+    sniffer -> enableSenderIpResolving(checked);
+}
+
+void MainWindow::on_actionReceiver_triggered(bool checked) {
+    sniffer -> enableReceiverIpResolving(checked);
 }

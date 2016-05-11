@@ -36,7 +36,21 @@
     <addaction name="actionStart"/>
     <addaction name="actionStop"/>
    </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <widget class="QMenu" name="menuResolve_ip_address">
+     <property name="title">
+      <string>Resolve ip address</string>
+     </property>
+     <addaction name="actionSender"/>
+     <addaction name="actionReceiver"/>
+    </widget>
+    <addaction name="menuResolve_ip_address"/>
+   </widget>
    <addaction name="menuActions"/>
+   <addaction name="menuSettings"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
    <attribute name="toolBarArea">
@@ -55,6 +69,22 @@
   <action name="actionStop">
    <property name="text">
     <string>Stop</string>
+   </property>
+  </action>
+  <action name="actionSender">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Sender</string>
+   </property>
+  </action>
+  <action name="actionReceiver">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Receiver</string>
    </property>
   </action>
  </widget>

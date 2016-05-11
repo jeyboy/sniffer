@@ -21,6 +21,12 @@ private slots:
 
     void on_actionStop_triggered();
 
+    void on_table_cellDoubleClicked(int row, int column);
+
+    void on_actionSender_triggered(bool checked);
+
+    void on_actionReceiver_triggered(bool checked);
+
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;

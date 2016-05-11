@@ -126,7 +126,7 @@ class SocketUtils {
 public:
     static QString ucharsToStr(char * buff, int length) {
         char * b = buff;
-        QString s(length, Qt::Uninitialized);
+        QString s; //(length, Qt::Uninitialized);
         for(int i = 0; i < length; i++, b++) {
 //            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
 //            byte ch = (unsigned char)*b;

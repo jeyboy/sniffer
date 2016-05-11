@@ -54,9 +54,10 @@ class Sniffer : public QObject {
     QHash<QString, int> protocol_counters;
     QHash<bool, int> direction_counters;
 
-    void procPacketAsync(char * data, int length) {
-        QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
+    bool resolve_ip_sender;
+    bool resolve_ip_receiver;
 
+    void procPacketAsync(QHash<QString, QString> attrs) {
         protocol_counters[attrs[SOCK_ATTR_PROTOCOL]]++;
 
         QString dest_ip = attrs[SOCK_ATTR_DEST_IP];
@@ -66,10 +67,12 @@ class Sniffer : public QObject {
 
         attrs.insert(SOCK_ATTR_DIRECTION,               income ? QStringLiteral("in") : QStringLiteral("out"));
 
-//        attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
-//        attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
+        if (resolve_ip_sender)
+            attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
 
-        free(data);
+        if (resolve_ip_receiver)
+            attrs.insert(SOCK_ATTR_DEST,                    getHostName(attrs[SOCK_ATTR_DEST_IP]));
+
         emit sendPacket(attrs);
     }
 
@@ -105,13 +108,22 @@ signals:
     void sendPacket(QHash<QString, QString>);
 protected slots:
     void procPacket(char * data, int length) {
+        QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
+        attrs.insert(SOCK_ATTR_LENGTH,                  NSTR(length));
+        free(data);
+
         //QFutureWatcher<void> * server = new QFutureWatcher<void>();
-        /*server -> setFuture(*/QtConcurrent::run(this, &Sniffer::procPacketAsync, data, length)/*)*/;
+        /*server -> setFuture(*/QtConcurrent::run(this, &Sniffer::procPacketAsync, attrs)/*)*/;
     }
 public:
-    Sniffer(QObject * parent) : QObject(parent) {
+    Sniffer(QObject * parent) : QObject(parent), resolve_ip_sender(false), resolve_ip_receiver(false) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
     }
+
+    ~Sniffer() { stop(); }
+
+    void enableSenderIpResolving(bool enabled = true) { resolve_ip_sender = enabled; }
+    void enableReceiverIpResolving(bool enabled = true) { resolve_ip_receiver = enabled; }
 
     QString stat() {
         return QStringLiteral("income: %1 ||| outcome: %2").arg(direction_counters[true]).arg(direction_counters[false]);
@@ -139,7 +151,7 @@ public:
         wrappers.clear();
     }
 
-    ~Sniffer() { stop(); }
+
 };
 
 #endif // SNIFFER
