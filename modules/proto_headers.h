@@ -122,6 +122,9 @@ typedef struct icmp_hdr {
 #define SOCK_ATTR_PAYLOAD QStringLiteral("Payload")
 #define SOCK_ATTR_LENGTH QStringLiteral("Length")
 
+#define SOCK_DIRECTION_IN QStringLiteral("in")
+#define SOCK_DIRECTION_OUT QStringLiteral("out")
+
 class SocketUtils {
 public:
     static QString ucharsToStr(char * buff, int length) {

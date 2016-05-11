@@ -4,7 +4,7 @@
 #include <qmessagebox.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
-    filter_in_proc(false), filter(QString()), src_col(5), dst_col(6)
+    filter_in_proc(false), src_col(5), dst_col(6), filter(QString())
 {
     ui -> setupUi(this);
 
@@ -119,6 +119,14 @@ void MainWindow::iterProtoBtnText(QPushButton * btn) {
     btn -> setProperty("amount", val);
 }
 
+void MainWindow::iterDirectBtnText(const QString & direct) {
+    QPushButton * btn = (direct == SOCK_DIRECTION_IN) ? ui -> incomeBtn : ui -> outcomeBtn;
+
+    int val = btn -> property("amount").toInt() + 1;
+    btn -> setText(QStringLiteral("%1\n(%2)").arg(direct).arg(/*sniffer -> protoStat(proto)*/val));
+    btn -> setProperty("amount", val);
+}
+
 void MainWindow::setInfo() {
     QString output_text;
 
@@ -150,6 +158,9 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     if (!hidden && !proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], true))
         hidden = true;
 
+    if (!hidden && !direction_filters.value(attrs[SOCK_ATTR_DIRECTION], true))
+        hidden = true;
+
     if (ignore_invalid && hidden) return;
 
     int row = ui -> table -> rowCount();
@@ -159,7 +170,8 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, 0, timew);
 
     QTableWidgetItem * directw = new QTableWidgetItem(attrs[SOCK_ATTR_DIRECTION]);
-    ui -> table -> setItem(row, 1, directw);
+    ui -> table -> setItem(row, (direct_col = 1), directw);
+    iterDirectBtnText(attrs[SOCK_ATTR_DIRECTION]);
 
     QTableWidgetItem * protow = new QTableWidgetItem(attrs[SOCK_ATTR_PROTOCOL]);
     ui -> table -> setItem(row, (protocol_col = 2), protow);
@@ -252,6 +264,8 @@ void MainWindow::on_actionReceiver_triggered(bool checked) {
 void MainWindow::procFilter() {
     bool payload_filter_on = !filter.isEmpty();
     bool proto_filter_on = !proto_filters.isEmpty();
+    bool direct_filter_on = !direction_filters.isEmpty();
+
     int payload_column = ui -> table -> columnCount() - 1;
     int rows_limit = ui -> table -> rowCount();
 
@@ -261,6 +275,11 @@ void MainWindow::procFilter() {
         if (!hidden && proto_filter_on) {
             QString proto = ui -> table -> item(row, protocol_col) -> text();
             hidden = !proto_filters.value(proto, true);
+        }
+
+        if (!hidden && direct_filter_on) {
+            QString direct = ui -> table -> item(row, direct_col) -> text();
+            hidden = !direction_filters.value(direct, true);
         }
 
         if (hidden)
@@ -293,4 +312,18 @@ void MainWindow::on_cut_opt_clicked(bool checked) {
 
 void MainWindow::cut_proto_opt_clicked(bool checked) {
     ignore_other_proto = checked;
+}
+
+void MainWindow::on_incomeBtn_clicked(bool checked) {
+    if (!checked)
+        direction_filters.insert(SOCK_DIRECTION_IN, false);
+    else
+        direction_filters.remove(SOCK_DIRECTION_IN);
+}
+
+void MainWindow::on_outcomeBtn_clicked(bool checked) {
+    if (!checked)
+        direction_filters.insert(SOCK_DIRECTION_OUT, false);
+    else
+        direction_filters.remove(SOCK_DIRECTION_OUT);
 }

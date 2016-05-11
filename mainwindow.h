@@ -15,10 +15,12 @@ class MainWindow : public QMainWindow {
 
     QHash<QString, QPushButton *> proto_btns;
     QHash<QString, bool> proto_filters;
+    QHash<QString, bool> direction_filters;
 
     void newProtoBtn();
     QPushButton * registerProtoBtn(const QString & proto, QAction * before_action = 0);
     void iterProtoBtnText(QPushButton * btn);
+    void iterDirectBtnText(const QString & direct);
     void setInfo();
     void procFilter();
     void initAddProtoPanel();
@@ -51,6 +53,10 @@ private slots:
     void on_cut_opt_clicked(bool checked);
     void cut_proto_opt_clicked(bool checked);
 
+    void on_incomeBtn_clicked(bool checked);
+
+    void on_outcomeBtn_clicked(bool checked);
+
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
@@ -60,7 +66,7 @@ private:
 
     QAction * new_proto_panel, * new_proto_panel_btn;
     bool ignore_invalid, ignore_other_proto, filter_in_proc;
-    int protocol_col, payload_col, src_col, dst_col;
+    int protocol_col, payload_col, src_col, dst_col, direct_col;
     QString filter;
 };
 

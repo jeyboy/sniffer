@@ -65,7 +65,7 @@ class Sniffer : public QObject {
 
         direction_counters[income]++;
 
-        attrs.insert(SOCK_ATTR_DIRECTION,               income ? QStringLiteral("in") : QStringLiteral("out"));
+        attrs.insert(SOCK_ATTR_DIRECTION,                   income ? SOCK_DIRECTION_IN : SOCK_DIRECTION_OUT);
 
         if (resolve_ip_sender)
             attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
