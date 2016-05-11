@@ -83,6 +83,8 @@ public:
             int count = recvfrom(_socket, buffer, sizeof(buffer), 0, (sockaddr *)&sender_addr, &sender_addr_size);
 
             if (count > 0) {
+                // Once you have their address, you can use inet_ntop(), getnameinfo(), or gethostbyaddr() to print or get more information
+
 //                switch (sender_addr.ss_family) {
 //                    case AF_INET: {
 //                        sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);

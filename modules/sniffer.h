@@ -129,6 +129,8 @@ public:
         return QStringLiteral("income: %1 ||| outcome: %2").arg(direction_counters[true]).arg(direction_counters[false]);
     }
 
+    int protoStat(const QString & proto) { return protocol_counters.value(proto, 0); }
+
     void start(const char * packetSlot, const char * errorSlot, int port = -1) {
         if (!wrappers.isEmpty()) return;
 

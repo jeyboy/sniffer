@@ -3,8 +3,11 @@
 
 #include <qmessagebox.h>
 
-MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
+MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), filter(QString()) {
     ui -> setupUi(this);
+
+    bar = new QToolBar(ui -> panel);
+    ui -> panel -> layout() -> addWidget(bar);
 
     QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
 
@@ -22,6 +25,20 @@ MainWindow::~MainWindow() {
     delete ui;
 }
 
+void MainWindow::registerProtoBtn(const QString & proto) {
+    QPushButton * btn = proto_btns.value(proto, 0);
+
+    if (!btn) {
+        btn = new QPushButton(bar);
+        proto_btns.insert(proto, btn);
+        QAction * act = bar -> addWidget(btn);
+        act -> setProperty("proto", proto);
+        connect(act, SIGNAL(triggered(bool)), this, SLOT(protoBtnTriggered(bool)));
+    }
+
+    btn -> setText(QStringLiteral("%1 (%2)").arg(proto).arg(sniffer -> protoStat(proto)));
+}
+
 void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     setWindowTitle(sniffer -> stat());
 
@@ -35,7 +52,7 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, 1, directw);
 
     QTableWidgetItem * protow = new QTableWidgetItem(attrs[SOCK_ATTR_PROTOCOL]);
-    ui -> table -> setItem(row, 2, protow);
+    ui -> table -> setItem(row, (protocol_col = 2), protow);
 
     QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs[SOCK_ATTR_SRC_IP]);
     ui -> table -> setItem(row, 3, sourceipw);
@@ -53,7 +70,19 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, 7, lengw);
 
     QTableWidgetItem * payw = new QTableWidgetItem(attrs[SOCK_ATTR_PAYLOAD]);
-    ui -> table -> setItem(row, 8, payw);
+    ui -> table -> setItem(row, (payload_col = 8), payw);
+
+    registerProtoBtn(attrs[SOCK_ATTR_PROTOCOL]);
+
+    bool hidden = false;
+
+    if (!filter.isEmpty())
+        hidden = !attrs[SOCK_ATTR_PAYLOAD].contains(filter, Qt::CaseInsensitive);
+
+    if (!hidden && proto_filters.value(attrs[SOCK_ATTR_PROTOCOL], false))
+        hidden = true;
+
+    ui -> table -> setRowHidden(row, hidden);
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();
@@ -68,6 +97,13 @@ void MainWindow::errorReceived(QString message) {
     ui -> table -> setItem(row, 1, directw);
 }
 
+void MainWindow::protoBtnTriggered(bool on) {
+    QAction * act = (QAction *)sender();
+    QString proto = act -> property("proto").toString();
+    proto_filters[proto] = on;
+    on_filterBtn_clicked();
+}
+
 void MainWindow::on_actionStart_triggered() {
     sniffer -> start(SLOT(packetInfoReceived(QHash<QString,QString>)), SLOT(errorReceived(QString)));
 }
@@ -77,7 +113,7 @@ void MainWindow::on_actionStop_triggered() {
 }
 
 void MainWindow::on_table_cellDoubleClicked(int row, int /*column*/) {
-    QString payload = ui -> table -> item(row, ui -> table -> columnCount() - 1) -> text();
+    QString payload = ui -> table -> item(row, payload_col) -> text();
     QMessageBox::information(this, "Payload", payload);
 }
 
@@ -87,4 +123,23 @@ void MainWindow::on_actionSender_triggered(bool checked) {
 
 void MainWindow::on_actionReceiver_triggered(bool checked) {
     sniffer -> enableReceiverIpResolving(checked);
+}
+
+void MainWindow::on_filterBtn_clicked() {
+    filter = ui -> text_filter -> text();
+
+    bool payload_filter_on = !filter.isEmpty();
+    bool proto_filter_on = !proto_filters.isEmpty();
+    int payload_column = ui -> table -> columnCount() - 1;
+
+    for(int row = 0; row < ui -> table -> rowCount(); row++) {
+        bool hidden = payload_filter_on && !ui -> table -> item(row, payload_column) -> text().contains(filter, Qt::CaseInsensitive);
+
+        if (!hidden && proto_filter_on) {
+            QString proto = ui -> table -> item(row, protocol_col) -> text();
+            hidden = proto_filters.value(proto, false);
+        }
+
+        ui -> table -> setRowHidden(row, hidden);
+    }
 }
