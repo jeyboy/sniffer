@@ -1,6 +1,8 @@
 #ifndef PROTO_HEADERS
 #define PROTO_HEADERS
 
+#include <qstringbuilder.h>
+
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
@@ -110,14 +112,52 @@ typedef struct icmp_hdr {
 #define SOCK_DIRECTION_IN QStringLiteral("in")
 #define SOCK_DIRECTION_OUT QStringLiteral("out")
 
+#define HTTP_ATTR_HOST "host"
+
 class SocketUtils {
 public:
     static QString httpToCurl(const QString & http) {
-        QString res = "curl ";
+//        curl --dump-header headers_and_cookies http://www.example.com
+//  -i show response headers
+//  -H header
+//  -X method
+        QString res = QStringLiteral("curl -i '%1'");
+        QString proto = QStringLiteral("http://");
 
-//        http
+        QStringList list = http.split(QStringLiteral("\r\n"), QString::SkipEmptyParts);
+        QString url = list.takeFirst();
 
-        return res;
+
+        QStringList request_parts = url.split(' ', QString::SkipEmptyParts);
+        if (request_parts.length() != 3)
+            return QStringLiteral("wrong request");
+
+        QString method = request_parts[0];
+        QString path = request_parts[1];
+        QString host;
+
+        QString http_ver = request_parts[2].toLower();
+        if (http_ver != QStringLiteral("http/1.1"))
+            return QStringLiteral("undefined http ver: ") % http_ver;
+
+        res = res % QStringLiteral(" -X ") % method;
+
+        for(QStringList::Iterator str = list.begin(); str != list.end(); str++) {
+            int i = (*str).indexOf(':');
+            QString key = (*str).mid(0, i).toLower();
+            QString val = (*str).mid(i + 1);
+
+            if (key == HTTP_ATTR_HOST)
+                host = val.trimmed();
+
+            res = res % QStringLiteral(" -H '") % (*str) % QStringLiteral("'");
+        }
+
+        host = proto % host;
+        if (path != "*")
+            host = host % path;
+
+        return res.arg(host);
     }
 
     static QString pidToPath(DWORD pid) {

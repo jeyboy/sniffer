@@ -388,6 +388,8 @@ void MainWindow::procFilter() {
     bool payload_filter_on = !filter.isEmpty();
     bool proto_filter_on = !proto_filters.isEmpty();
     bool direct_filter_on = !direction_filters.isEmpty();
+    bool src_ip_filter_on = !src_ips.isEmpty();
+    bool dst_ip_filter_on = !dst_ips.isEmpty();
 
     int payload_column = ui -> table -> columnCount() - 1;
     int rows_limit = ui -> table -> rowCount();
@@ -403,6 +405,16 @@ void MainWindow::procFilter() {
         if (!hidden && direct_filter_on) {
             QString direct = ui -> table -> item(row, direct_col) -> text();
             hidden = !direction_filters.value(direct, true);
+        }
+
+        if (!hidden && src_ip_filter_on) {
+            bool has_ip = src_ips.contains(ui -> table -> item(row, src_ip_col) -> text());
+            hidden = (block_src_ips == has_ip);
+        }
+
+        if (!hidden && dst_ip_filter_on) {
+            bool has_ip = dst_ips.contains(ui -> table -> item(row, dst_ip_col) -> text());
+            hidden = (block_dst_ips == has_ip);
         }
 
         if (hidden)
