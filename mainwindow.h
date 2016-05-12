@@ -58,6 +58,8 @@ private slots:
 
     void on_resolveAppBtn_clicked(bool checked);
 
+    void on_scrollEndBtn_clicked(bool checked);
+
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
@@ -66,7 +68,7 @@ private:
     QComboBox * protos_list;
 
     QAction * new_proto_panel, * new_proto_panel_btn;
-    bool ignore_invalid, ignore_other_proto, filter_in_proc;
+    bool ignore_invalid, ignore_other_proto, filter_in_proc, scroll_to_end;
     int protocol_col, payload_col, src_col, dst_col, direct_col, app_col;
     QString filter;
 };

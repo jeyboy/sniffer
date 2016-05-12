@@ -74,7 +74,24 @@
          </property>
          <property name="text">
           <string>Resolve
-app path</string>
+app name</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="scrollEndBtn">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>44</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Auto scroll
+to end</string>
          </property>
          <property name="checkable">
           <bool>true</bool>

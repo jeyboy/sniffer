@@ -2,9 +2,10 @@
 #include "ui_mainwindow.h"
 
 #include <qmessagebox.h>
+#include <qscrollbar.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
-    filter_in_proc(false), src_col(6), dst_col(7), app_col(1), filter(QString())
+    filter_in_proc(false), scroll_to_end(false), src_col(6), dst_col(7), app_col(1), filter(QString())
 {
     ui -> setupUi(this);
 
@@ -32,6 +33,7 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     on_resolveSenderNameBtn_clicked(ui -> resolveSenderNameBtn -> isChecked());
     on_resolveReceiverNameBtn_clicked(ui -> resolveReceiverNameBtn -> isChecked());
     on_resolveAppBtn_clicked(ui -> resolveAppBtn -> isChecked());
+    on_scrollEndBtn_clicked(ui -> scrollEndBtn -> isChecked());
 }
 
 MainWindow::~MainWindow() {
@@ -171,6 +173,8 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
 
     if (ignore_invalid && hidden) return;
 
+    bool atEnd = ui -> table -> verticalScrollBar() -> maximum() - ui -> table -> verticalScrollBar() -> value() == 0;
+
     int row = ui -> table -> rowCount();
     ui -> table -> insertRow(row);
 
@@ -211,6 +215,9 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     iterProtoBtnText(btn);
 
     ui -> table -> setRowHidden(row, hidden);
+
+    if (!hidden && scroll_to_end && atEnd)
+        ui -> table -> scrollToBottom();
 }
 void MainWindow::errorReceived(QString message) {
     int row = ui -> table -> rowCount();
@@ -346,4 +353,8 @@ void MainWindow::on_resolveReceiverNameBtn_clicked(bool checked) {
 void MainWindow::on_resolveAppBtn_clicked(bool checked) {
     sniffer -> enableAppPathResolving(checked);
     ui -> table -> setColumnHidden(app_col, !checked);
+}
+
+void MainWindow::on_scrollEndBtn_clicked(bool checked) {
+    scroll_to_end = checked;
 }
