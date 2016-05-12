@@ -13,6 +13,8 @@ namespace Ui { class MainWindow; }
 
 class QListWidget;
 class QListWidgetItem;
+class QTableView;
+class PacketModel;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -33,7 +35,7 @@ class MainWindow : public QMainWindow {
 
     void createTab(int row);
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(QWidget * parent = 0);
     ~MainWindow();
 public slots:
     void packetInfoReceived(QHash<QString, QString> attrs);
@@ -83,6 +85,8 @@ private slots:
 
 private:
     Ui::MainWindow * ui;
+    QTableView * table;
+    PacketModel * mdl;
     Sniffer * sniffer;
     QToolBar * bar;
     QLabel * filter_info;

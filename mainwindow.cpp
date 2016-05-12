@@ -2,12 +2,14 @@
 #include "ui_mainwindow.h"
 
 #include "modules/accordion.h"
+#include "modules/data/packet_model.h"
 
 #include <qmessagebox.h>
 #include <qscrollbar.h>
 #include <qtextedit.h>
 #include <qdockwidget.h>
 #include <qlistwidget.h>
+#include <qtableview.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
     filter_in_proc(false), scroll_to_end(false), block_src_ips(true), block_dst_ips(true), src_col(6), dst_col(7), app_col(1), filter(QString())
@@ -15,6 +17,15 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     ui -> setupUi(this);
 
     setWindowTitle("Sniffer");
+
+    table = new QTableView(this);
+    mdl = new PacketModel(table);
+    QStringList headers = QStringList() << "Timestamp" << "App" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
+    mdl -> setHeaders(headers);
+    table -> setModel(mdl);
+
+    setCentralWidget(table);
+
 
     bar = new QToolBar("Protos", this);
     bar -> setMovable(true);
@@ -66,15 +77,10 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     initAddProtoPanel();
 
-    QStringList headers = QStringList() << "Timestamp" << "App" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
-
-    ui -> table -> setColumnCount(headers.length());
-    ui -> table -> setHorizontalHeaderLabels(headers);
-    ui -> table -> setSortingEnabled(true);
-    ui -> table -> setContextMenuPolicy(Qt::CustomContextMenu);
-
-    ui -> table -> setEditTriggers(QAbstractItemView::NoEditTriggers);
-    ui -> table -> setSelectionBehavior(QAbstractItemView::SelectRows);
+    table -> setSortingEnabled(true);
+    table -> setContextMenuPolicy(Qt::CustomContextMenu);
+    table -> setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table -> setSelectionBehavior(QAbstractItemView::SelectRows);
 
     sniffer = new Sniffer(this);
 
@@ -126,7 +132,7 @@ void MainWindow::initAddProtoPanel() {
 void MainWindow::createTab(int row) {
     QDockWidget * dock = new QDockWidget("Row: " + QString::number(row + 1), this);
 
-    QString text = ui -> table -> item(row, payload_col) -> text();
+    QString text = table -> indexAt(item(row, payload_col) -> text();
 
 
 //    setExclusive(true);

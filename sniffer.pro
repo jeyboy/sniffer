@@ -18,7 +18,8 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    modules/accordion.cpp
+    modules/accordion.cpp \
+    modules/data/packet_model.cpp
 
 HEADERS  += mainwindow.h \
     modules/sniffer.h \
@@ -26,7 +27,8 @@ HEADERS  += mainwindow.h \
     modules/proto_headers.h \
     modules/proto_defines.h \
     modules/sniffer_wrapper.h \
-    modules/accordion.h
+    modules/accordion.h \
+    modules/data/packet_model.h
 
 FORMS    += mainwindow.ui
 

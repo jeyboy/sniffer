@@ -202,9 +202,6 @@ to end</string>
       </layout>
      </widget>
     </item>
-    <item>
-     <widget class="QTableWidget" name="table"/>
-    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menuBar">

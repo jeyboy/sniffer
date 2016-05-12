@@ -117,18 +117,11 @@ typedef struct icmp_hdr {
 class SocketUtils {
 public:
     static QString httpToCurl(const QString & http) {
-//        curl --dump-header headers_and_cookies http://www.example.com
-//  -i show response headers
-//  -H header
-//  -X method
         QString res = QStringLiteral("curl -i '%1'");
         QString proto = QStringLiteral("http://");
 
         QStringList list = http.split(QStringLiteral("\r\n"), QString::SkipEmptyParts);
         QString url = list.takeFirst();
-
-
-        //        HTTP/1.1 301 Moved Permanently
 
         QStringList request_parts = url.split(' ', QString::SkipEmptyParts);
 
