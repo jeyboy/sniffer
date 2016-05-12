@@ -7,15 +7,16 @@
 #include <qscrollbar.h>
 #include <qtextedit.h>
 #include <qdockwidget.h>
+#include <qlistwidget.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
-    filter_in_proc(false), scroll_to_end(false), src_col(6), dst_col(7), app_col(1), filter(QString())
+    filter_in_proc(false), scroll_to_end(false), block_src_ips(true), block_dst_ips(true), src_col(6), dst_col(7), app_col(1), filter(QString())
 {
     ui -> setupUi(this);
 
     setWindowTitle("Sniffer");
 
-    bar = new QToolBar(this);
+    bar = new QToolBar("Protos", this);
     bar -> setMovable(true);
     addToolBar(bar);
     bar -> addWidget(ui -> procBtn);
@@ -23,6 +24,42 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     bar -> addWidget(ui -> incomeBtn);
     bar -> addWidget(ui -> outcomeBtn);
     bar -> addSeparator();
+
+
+    QToolBar * srcListBar = new QToolBar("Src IP List", this);
+    srcListBar -> setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
+    QLabel * srcTitle = new QLabel("Src IP List", srcListBar);
+    srcListBar -> addWidget(srcTitle);
+
+    QCheckBox * srcIpFlag = new QCheckBox("(On) Except/ (Off) Only", srcListBar);
+    connect(srcIpFlag, SIGNAL(clicked(bool)), this, SLOT(srcIpsFlagClicked(bool)));
+    srcIpFlag -> setChecked(block_src_ips);
+    srcIpsFlagClicked(block_src_ips);
+    srcListBar -> addWidget(srcIpFlag);
+
+    srcList = new QListWidget(srcListBar);
+    connect(srcList, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(srcItemDoubleClicked(QListWidgetItem*)));
+    srcListBar -> addWidget(srcList);
+    addToolBar(Qt::LeftToolBarArea, srcListBar);
+
+
+    QToolBar * dstListBar = new QToolBar("Dst IP List", this);
+    dstListBar -> setAllowedAreas(Qt::LeftToolBarArea | Qt::RightToolBarArea);
+    QLabel * dstTitle = new QLabel("Dst IP List", srcListBar);
+    dstListBar -> addWidget(dstTitle);
+
+    QCheckBox * dstIpFlag = new QCheckBox("(On) Except/ (Off) Only", dstListBar);
+    connect(dstIpFlag, SIGNAL(clicked(bool)), this, SLOT(dstIpsFlagClicked(bool)));
+    dstIpFlag -> setChecked(block_dst_ips);
+    dstIpsFlagClicked(block_dst_ips);
+    dstListBar -> addWidget(dstIpFlag);
+
+    dstList = new QListWidget(dstListBar);
+    connect(dstList, SIGNAL(itemDoubleClicked(QListWidgetItem*)), this, SLOT(dstItemDoubleClicked(QListWidgetItem*)));
+    dstListBar -> addWidget(dstList);
+
+    addToolBar(Qt::LeftToolBarArea, dstListBar);
+
 
     filter_info = new QLabel("No filters");
     ui -> statusBar -> addWidget(filter_info);
@@ -34,6 +71,7 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     ui -> table -> setColumnCount(headers.length());
     ui -> table -> setHorizontalHeaderLabels(headers);
     ui -> table -> setSortingEnabled(true);
+    ui -> table -> setContextMenuPolicy(Qt::CustomContextMenu);
 
     ui -> table -> setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui -> table -> setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -215,6 +253,16 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     if (!hidden && !direction_filters.value(attrs[SOCK_ATTR_DIRECTION], true))
         hidden = true;
 
+    if (!hidden) {
+        bool has_ip = src_ips.contains(attrs[SOCK_ATTR_SRC_IP]);
+        hidden = (block_src_ips == has_ip);
+    }
+
+    if (!hidden) {
+        bool has_ip = dst_ips.contains(attrs[SOCK_ATTR_DEST_IP]);
+        hidden = (block_dst_ips == has_ip);
+    }
+
     if (ignore_invalid && hidden) return;
 
     bool atEnd = ui -> table -> verticalScrollBar() -> maximum() - ui -> table -> verticalScrollBar() -> value() == 0;
@@ -275,6 +323,34 @@ void MainWindow::errorReceived(QString message) {
     timew -> setBackgroundColor(Qt::red);
     ui -> table -> setItem(row, 1, directw);
 }
+
+
+void MainWindow::srcIpsFlagClicked(bool checked) {
+    block_src_ips = checked;
+}
+void MainWindow::dstIpsFlagClicked(bool checked) {
+    block_dst_ips = checked;
+}
+
+void MainWindow::srcItemDoubleClicked(QListWidgetItem * item) {
+    QListWidget * list = (QListWidget *)(sender());
+    list -> removeItemWidget(item);
+
+    src_ips.remove(item -> text());
+
+    delete item;
+
+
+}
+void MainWindow::dstItemDoubleClicked(QListWidgetItem * item) {
+    QListWidget * list = (QListWidget *)(sender());
+    list -> removeItemWidget(item);
+
+    dst_ips.remove(item -> text());
+
+    delete item;
+}
+
 
 void MainWindow::protoBtnTriggered(bool on) {
     QPushButton * btn = (QPushButton *)sender();
@@ -402,4 +478,59 @@ void MainWindow::on_resolveAppBtn_clicked(bool checked) {
 
 void MainWindow::on_scrollEndBtn_clicked(bool checked) {
     scroll_to_end = checked;
+}
+
+void MainWindow::on_table_customContextMenuRequested(const QPoint & pos) {
+    QTableWidgetItem * item = ui -> table -> itemAt(pos);
+    if (item) {
+        QMenu menu(this);
+        menu.addAction(QStringLiteral("Add Source Ip to filter list"), this, SLOT(sourceToFilterList()));
+        menu.addAction(QStringLiteral("Remove Source Ip from filter list"), this, SLOT(sourceFromFilterList()));
+        menu.addSeparator();
+
+        menu.addAction(QStringLiteral("Add Dest Ip to filter list"), this, SLOT(destToFilterList()));
+        menu.addAction(QStringLiteral("Remove Dest Ip from filter list"), this, SLOT(destFromFilterList()));
+        menu.addSeparator();
+
+        if (!menu.isEmpty())
+            menu.exec(ui -> table -> mapToGlobal(pos));
+    }
+}
+
+void MainWindow::sourceToFilterList() {
+    int row = ui -> table -> currentRow();
+    QString ip = ui -> table -> item(row, src_col) -> text();
+
+    if (!src_ips.contains(ip)) {
+       /*QListWidgetItem * item = */new QListWidgetItem(ip, srcList);
+       src_ips.insert(ip, true);
+    }
+}
+void MainWindow::sourceFromFilterList() {
+    int row = ui -> table -> currentRow();
+    QString ip = ui -> table -> item(row, src_col) -> text();
+
+    if (src_ips.contains(ip)) {
+        QListWidgetItem * item = srcList -> findItems(ip, Qt::MatchFixedString).first();
+        srcItemDoubleClicked(item);
+    }
+}
+
+void MainWindow::destToFilterList() {
+    int row = ui -> table -> currentRow();
+    QString ip = ui -> table -> item(row, dst_col) -> text();
+
+    if (!dst_ips.contains(ip)) {
+       /*QListWidgetItem * item = */new QListWidgetItem(ip, dstList);
+       dst_ips.insert(ip, true);
+    }
+}
+void MainWindow::destFromFilterList() {
+    int row = ui -> table -> currentRow();
+    QString ip = ui -> table -> item(row, dst_col) -> text();
+
+    if (dst_ips.contains(ip)) {
+        QListWidgetItem * item = dstList -> findItems(ip, Qt::MatchFixedString).first();
+        dstItemDoubleClicked(item);
+    }
 }

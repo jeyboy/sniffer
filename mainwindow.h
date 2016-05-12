@@ -11,12 +11,17 @@
 
 namespace Ui { class MainWindow; }
 
+class QListWidget;
+class QListWidgetItem;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
     QHash<QString, QPushButton *> proto_btns;
     QHash<QString, bool> proto_filters;
     QHash<QString, bool> direction_filters;
+    QHash<QString, bool> src_ips;
+    QHash<QString, bool> dst_ips;
 
     void newProtoBtn();
     QPushButton * registerProtoBtn(const QString & proto, QAction * before_action = 0);
@@ -35,6 +40,12 @@ public slots:
     void errorReceived(QString message);
 
 private slots:
+    void srcIpsFlagClicked(bool);
+    void dstIpsFlagClicked(bool);
+
+    void srcItemDoubleClicked(QListWidgetItem *);
+    void dstItemDoubleClicked(QListWidgetItem *);
+
     void protoBtnTriggered(bool);
     void newProtoBtnTriggered();
 
@@ -62,6 +73,14 @@ private slots:
 
     void on_scrollEndBtn_clicked(bool checked);
 
+    void on_table_customContextMenuRequested(const QPoint & pos);
+
+    void sourceToFilterList();
+    void sourceFromFilterList();
+
+    void destToFilterList();
+    void destFromFilterList();
+
 private:
     Ui::MainWindow * ui;
     Sniffer * sniffer;
@@ -69,8 +88,9 @@ private:
     QLabel * filter_info;
     QComboBox * protos_list;
 
+    QListWidget * srcList, * dstList;
     QAction * new_proto_panel, * new_proto_panel_btn;
-    bool ignore_invalid, ignore_other_proto, filter_in_proc, scroll_to_end;
+    bool ignore_invalid, ignore_other_proto, filter_in_proc, scroll_to_end, block_src_ips, block_dst_ips;
     int protocol_col, payload_col, src_col, dst_col, direct_col, app_col;
     QString filter;
 };
