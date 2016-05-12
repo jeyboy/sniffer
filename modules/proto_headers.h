@@ -128,16 +128,23 @@ public:
         QString url = list.takeFirst();
 
 
+        //        HTTP/1.1 301 Moved Permanently
+
         QStringList request_parts = url.split(' ', QString::SkipEmptyParts);
+
+        QString method = request_parts[0].toLower();
+
+        if (method.startsWith(QStringLiteral("http/")))
+            return QStringLiteral("This is response");
+
         if (request_parts.length() != 3)
             return QStringLiteral("wrong request");
 
-        QString method = request_parts[0];
         QString path = request_parts[1];
         QString host;
 
         QString http_ver = request_parts[2].toLower();
-        if (http_ver != QStringLiteral("http/1.1"))
+        if (!http_ver.startsWith(QStringLiteral("http/")))
             return QStringLiteral("undefined http ver: ") % http_ver;
 
         res = res % QStringLiteral(" -X ") % method;
