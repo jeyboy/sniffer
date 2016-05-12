@@ -11,8 +11,9 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     setWindowTitle("Sniffer");
 
-    bar = new QToolBar(ui -> panel);
-    ui -> panel -> layout() -> addWidget(bar);
+    bar = new QToolBar(this);
+    bar -> setMovable(true);
+    addToolBar(bar);
 
     filter_info = new QLabel("No filters");
     ui -> statusBar -> addWidget(filter_info);

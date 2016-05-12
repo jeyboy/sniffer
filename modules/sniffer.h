@@ -149,15 +149,15 @@ public:
 
     int protoStat(const QString & proto) { return protocol_counters.value(proto, 0); }
 
+    QStringList getHostsList() { return SocketUtils::hostsList(); }
+
     void start(const char * packetSlot, const char * errorSlot, int port = -1) {
         if (!wrappers.isEmpty()) return;
 
-        QStringList hosts = SocketUtils::hostsList();
+        QStringList hosts = getHostsList();
 
-        for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++) {
+        for(QStringList::Iterator h = hosts.begin(); h != hosts.end(); h++)
             local_ips.insert(*h, true);
-//            registerWrapper(packetSlot, errorSlot, *h, port);
-        }
 
         registerWrapper(packetSlot, errorSlot, hosts.first(), port);
     }
