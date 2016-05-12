@@ -75,11 +75,11 @@ class Sniffer : public QObject {
                 DWORD pid = 0;
 
                 if (attrs[SOCK_ATTR_PROTOCOL] == QStringLiteral("TCP"))
-                    pid = SocketUtils::addrTcpToPid(attrs[SOCK_ATTR_SRC_IP], port);
+                    pid = SocketUtils::addrTcpToPid(port);
                 else if (attrs[SOCK_ATTR_PROTOCOL] == QStringLiteral("UDP"))
-                    pid = SocketUtils::addrUdpToPid(attrs[SOCK_ATTR_SRC_IP], port);
+                    pid = SocketUtils::addrUdpToPid(port);
 
-                QString app_path = SocketUtils::pidToPath(pid);
+                QString app_path = pid > 0 ? SocketUtils::pidToPath(pid) : QStringLiteral("Unknown PORT:%1").arg(port);
                 attrs.insert(SOCK_ATTR_APP,                 app_path);
             }
         }

@@ -6,8 +6,6 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <psapi.h>
-
-//#include <time.h>
 #include <string>
 
 typedef struct ip_hdr {
@@ -115,7 +113,7 @@ typedef struct icmp_hdr {
 class SocketUtils {
 public:
     static QString pidToPath(DWORD pid) {
-        if (pid == 0) return QString("Unknown");
+        if (pid == 0) return QString();
 
         HANDLE processHandle = NULL;
         WCHAR filename[MAX_PATH];
@@ -125,23 +123,31 @@ public:
         processHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
         if (processHandle != NULL) {
             res = GetModuleFileNameEx(processHandle, NULL, filename, MAX_PATH) != 0;
-//            res = GetProcessImageFileName(processHandle, filename, MAX_PATH) != 0;
+            if (GetLastError() == ERROR_ACCESS_DENIED) {
+//                res = GetProcessImageFileName(processHandle, filename, MAX_PATH) != 0;
 
-            if (GetLastError() == ERROR_ACCESS_DENIED)
-                def_result = QStringLiteral("Not accessable PID:%1").arg(pid);
+                HMODULE hMod;
+                DWORD cbNeeded;
+
+                if (EnumProcessModules(processHandle, &hMod, sizeof(hMod), &cbNeeded))
+                    res = GetModuleBaseName(processHandle, hMod, filename, MAX_PATH) != 0;
+
+                if (GetLastError() == ERROR_ACCESS_DENIED)
+                    def_result = QStringLiteral("Not accessable PID:%1").arg(pid);
+            }
 
             CloseHandle(processHandle);
         } else {
             if (GetLastError() == ERROR_ACCESS_DENIED)
                 def_result = QStringLiteral("Not accessable PID:%1").arg(pid);
             else
-                def_result = QStringLiteral("Undefined");
+                def_result = QStringLiteral("Undefined (%1) PID:%2").arg(GetLastError()).arg(pid);
         }
 
         return res ? QString::fromWCharArray(filename) :def_result;
     }
 
-    static DWORD addrTcpToPid(const QString & ip, DWORD port) {
+    static DWORD addrTcpToPid(DWORD port) {
         DWORD pid = 0;
         DWORD dwSize = sizeof(MIB_TCPTABLE_OWNER_PID);
         DWORD dwRetValue = 0;
@@ -162,13 +168,53 @@ public:
         while(true);
 
         if (dwRetValue == ERROR_SUCCESS) {
-            DWORD host_ip = inet_addr(CONST_CHAR(ip));
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
 //                qDebug() << "TCP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
 
-                if (ptTable -> table[i].dwLocalAddr == host_ip && ptTable -> table[i].dwLocalPort == port) {
+                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                    pid = ptTable -> table[i].dwOwningPid;
+                    break;
+                }
+            }
+        }
+
+        free(ptTable);
+
+        if (pid == 0)
+            pid = addrTcp6ToPid(port);
+
+        return pid;
+    }
+
+    static DWORD addrTcp6ToPid(DWORD port) {
+        DWORD pid = 0;
+        DWORD dwSize = sizeof(MIB_TCP6TABLE_OWNER_PID);
+        DWORD dwRetValue = 0;
+
+        PMIB_TCP6TABLE_OWNER_PID ptTable = (PMIB_TCP6TABLE_OWNER_PID)malloc(dwSize);
+
+//        TCP_TABLE_OWNER_PID_LISTENER,
+//        TCP_TABLE_OWNER_PID_CONNECTIONS,
+//        TCP_TABLE_OWNER_PID_ALL,
+        do {
+            dwRetValue = GetExtendedTcpTable(ptTable, &dwSize, TRUE, AF_INET6, TCP_TABLE_OWNER_PID_ALL, 0);
+            if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
+                break;
+
+            free(ptTable);
+            ptTable = (PMIB_TCP6TABLE_OWNER_PID)malloc(dwSize);
+        }
+        while(true);
+
+        if (dwRetValue == ERROR_SUCCESS) {
+            DWORD entry_num = ptTable -> dwNumEntries;
+
+            for(DWORD i = 0; i < entry_num; i++) {
+//                qDebug() << "TCP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
+
+                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
@@ -179,7 +225,7 @@ public:
         return pid;
     }
 
-    static DWORD addrUdpToPid(const QString & ip, DWORD port) {
+    static DWORD addrUdpToPid(DWORD port) {
         DWORD pid = 0;
         DWORD dwRetValue = 0;
         DWORD dwSize = sizeof(PMIB_UDPTABLE_OWNER_PID);
@@ -197,13 +243,50 @@ public:
         while(true);
 
         if (dwRetValue == ERROR_SUCCESS) {
-            DWORD host_ip = inet_addr(CONST_CHAR(ip));
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
 //                qDebug() << "UDP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
 
-                if (ptTable -> table[i].dwLocalAddr == host_ip && ptTable -> table[i].dwLocalPort == port) {
+                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                    pid = ptTable -> table[i].dwOwningPid;
+                    break;
+                }
+            }
+        }
+
+        free(ptTable);
+
+        if (pid == 0)
+            pid = addrUdp6ToPid(port);
+
+        return pid;
+    }
+
+    static DWORD addrUdp6ToPid(DWORD port) {
+        DWORD pid = 0;
+        DWORD dwRetValue = 0;
+        DWORD dwSize = sizeof(PMIB_UDP6TABLE_OWNER_PID);
+
+        PMIB_UDP6TABLE_OWNER_PID ptTable = (PMIB_UDP6TABLE_OWNER_PID)malloc(dwSize);
+
+        do {
+            dwRetValue = GetExtendedUdpTable(ptTable, &dwSize, TRUE, AF_INET6, UDP_TABLE_OWNER_PID, 0);
+            if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
+                break;
+
+            free(ptTable);
+            ptTable = (PMIB_UDP6TABLE_OWNER_PID)malloc(dwSize);
+        }
+        while(true);
+
+        if (dwRetValue == ERROR_SUCCESS) {
+            DWORD entry_num = ptTable -> dwNumEntries;
+
+            for(DWORD i = 0; i < entry_num; i++) {
+//                qDebug() << "UDP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
+
+                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
