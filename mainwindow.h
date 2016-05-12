@@ -91,7 +91,7 @@ private:
     QListWidget * srcList, * dstList;
     QAction * new_proto_panel, * new_proto_panel_btn;
     bool ignore_invalid, ignore_other_proto, filter_in_proc, scroll_to_end, block_src_ips, block_dst_ips;
-    int protocol_col, payload_col, src_col, dst_col, direct_col, app_col;
+    int protocol_col, payload_col, src_col, dst_col, direct_col, app_col, src_ip_col, dst_ip_col;
     QString filter;
 };
 

@@ -286,10 +286,10 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     ui -> table -> setItem(row, (protocol_col = 3), protow);
 
     QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs[SOCK_ATTR_SRC_IP]);
-    ui -> table -> setItem(row, 4, sourceipw);
+    ui -> table -> setItem(row, (src_ip_col = 4), sourceipw);
 
     QTableWidgetItem * destipw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST_IP]);
-    ui -> table -> setItem(row, 5, destipw);
+    ui -> table -> setItem(row, (dst_ip_col = 5), destipw);
 
     QTableWidgetItem * sourcew = new QTableWidgetItem(attrs[SOCK_ATTR_SRC]);
     ui -> table -> setItem(row, (src_col = 6), sourcew);
@@ -499,16 +499,16 @@ void MainWindow::on_table_customContextMenuRequested(const QPoint & pos) {
 
 void MainWindow::sourceToFilterList() {
     int row = ui -> table -> currentRow();
-    QString ip = ui -> table -> item(row, src_col) -> text();
+    QString ip = ui -> table -> item(row, src_ip_col) -> text();
 
     if (!src_ips.contains(ip)) {
-       /*QListWidgetItem * item = */new QListWidgetItem(ip, srcList);
+       srcList -> addItem(ip);
        src_ips.insert(ip, true);
     }
 }
 void MainWindow::sourceFromFilterList() {
     int row = ui -> table -> currentRow();
-    QString ip = ui -> table -> item(row, src_col) -> text();
+    QString ip = ui -> table -> item(row, src_ip_col) -> text();
 
     if (src_ips.contains(ip)) {
         QListWidgetItem * item = srcList -> findItems(ip, Qt::MatchFixedString).first();
@@ -518,16 +518,16 @@ void MainWindow::sourceFromFilterList() {
 
 void MainWindow::destToFilterList() {
     int row = ui -> table -> currentRow();
-    QString ip = ui -> table -> item(row, dst_col) -> text();
+    QString ip = ui -> table -> item(row, dst_ip_col) -> text();
 
     if (!dst_ips.contains(ip)) {
-       /*QListWidgetItem * item = */new QListWidgetItem(ip, dstList);
+       dstList -> addItem(ip);
        dst_ips.insert(ip, true);
     }
 }
 void MainWindow::destFromFilterList() {
     int row = ui -> table -> currentRow();
-    QString ip = ui -> table -> item(row, dst_col) -> text();
+    QString ip = ui -> table -> item(row, dst_ip_col) -> text();
 
     if (dst_ips.contains(ip)) {
         QListWidgetItem * item = dstList -> findItems(ip, Qt::MatchFixedString).first();
