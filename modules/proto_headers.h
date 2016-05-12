@@ -5,26 +5,10 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
+#include <psapi.h>
 
 //#include <time.h>
 #include <string>
-
-//typedef struct _IPHeader {
-//    unsigned char  header_len :4;   // ver and length of header
-//    unsigned char  header_ver :4;   // ver and length of header
-//    unsigned char  tos;             // type of service (0 1 2 3 ... 7)
-//    unsigned short length;          // packet length
-//    unsigned short id;              // Id
-//    unsigned short flgs_offset;     // offset
-//    unsigned char  ttl;             // life time
-//    unsigned char  protocol;        // protocol
-//    unsigned short xsum;            // control sum
-//    unsigned long  src;             // sender IP
-//    unsigned long  dest;            // receiver IP
-////    //------------------------------------------------------------
-////    unsigned short *params;         // 320 bits length
-////    unsigned char  *data;           // limit is 65535
-//} IPHeader;
 
 typedef struct ip_hdr {
     unsigned char header_len :4; // 4-bit header length (in 32-bit words) normally=5 (Means 20 Bytes may be 24 also)
@@ -121,19 +105,120 @@ typedef struct icmp_hdr {
 #define SOCK_ATTR_DEST QStringLiteral("Destination")
 #define SOCK_ATTR_PAYLOAD QStringLiteral("Payload")
 #define SOCK_ATTR_LENGTH QStringLiteral("Length")
+#define SOCK_ATTR_APP QStringLiteral("App")
+#define SOCK_ATTR_SRC_PORT QStringLiteral("Source Port")
+#define SOCK_ATTR_DEST_PORT QStringLiteral("Destination Port")
 
 #define SOCK_DIRECTION_IN QStringLiteral("in")
 #define SOCK_DIRECTION_OUT QStringLiteral("out")
 
 class SocketUtils {
 public:
+    static QString pidToPath(DWORD pid) {
+        if (pid == 0) return QString("Unknown");
+
+        HANDLE processHandle = NULL;
+        WCHAR filename[MAX_PATH];
+        bool res = false;
+        QString def_result;
+
+        processHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+        if (processHandle != NULL) {
+            res = GetModuleFileNameEx(processHandle, NULL, filename, MAX_PATH) != 0;
+//            res = GetProcessImageFileName(processHandle, filename, MAX_PATH) != 0;
+
+            if (GetLastError() == ERROR_ACCESS_DENIED)
+                def_result = QStringLiteral("Not accessable PID:%1").arg(pid);
+
+            CloseHandle(processHandle);
+        } else {
+            if (GetLastError() == ERROR_ACCESS_DENIED)
+                def_result = QStringLiteral("Not accessable PID:%1").arg(pid);
+            else
+                def_result = QStringLiteral("Undefined");
+        }
+
+        return res ? QString::fromWCharArray(filename) :def_result;
+    }
+
+    static DWORD addrTcpToPid(const QString & ip, DWORD port) {
+        DWORD pid = 0;
+        DWORD dwSize = sizeof(MIB_TCPTABLE_OWNER_PID);
+        DWORD dwRetValue = 0;
+
+        PMIB_TCPTABLE_OWNER_PID ptTable = (PMIB_TCPTABLE_OWNER_PID)malloc(dwSize);
+
+//        TCP_TABLE_OWNER_PID_LISTENER,
+//        TCP_TABLE_OWNER_PID_CONNECTIONS,
+//        TCP_TABLE_OWNER_PID_ALL,
+        do {
+            dwRetValue = GetExtendedTcpTable(ptTable, &dwSize, TRUE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+            if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
+                break;
+
+            free(ptTable);
+            ptTable = (PMIB_TCPTABLE_OWNER_PID)malloc(dwSize);
+        }
+        while(true);
+
+        if (dwRetValue == ERROR_SUCCESS) {
+            DWORD host_ip = inet_addr(CONST_CHAR(ip));
+            DWORD entry_num = ptTable -> dwNumEntries;
+
+            for(DWORD i = 0; i < entry_num; i++) {
+//                qDebug() << "TCP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
+
+                if (ptTable -> table[i].dwLocalAddr == host_ip && ptTable -> table[i].dwLocalPort == port) {
+                    pid = ptTable -> table[i].dwOwningPid;
+                    break;
+                }
+            }
+        }
+
+        free(ptTable);
+        return pid;
+    }
+
+    static DWORD addrUdpToPid(const QString & ip, DWORD port) {
+        DWORD pid = 0;
+        DWORD dwRetValue = 0;
+        DWORD dwSize = sizeof(PMIB_UDPTABLE_OWNER_PID);
+
+        PMIB_UDPTABLE_OWNER_PID ptTable = (PMIB_UDPTABLE_OWNER_PID)malloc(dwSize);
+
+        do {
+            dwRetValue = GetExtendedUdpTable(ptTable, &dwSize, TRUE, AF_INET, UDP_TABLE_OWNER_PID, 0);
+            if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
+                break;
+
+            free(ptTable);
+            ptTable = (PMIB_UDPTABLE_OWNER_PID)malloc(dwSize);
+        }
+        while(true);
+
+        if (dwRetValue == ERROR_SUCCESS) {
+            DWORD host_ip = inet_addr(CONST_CHAR(ip));
+            DWORD entry_num = ptTable -> dwNumEntries;
+
+            for(DWORD i = 0; i < entry_num; i++) {
+//                qDebug() << "UDP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
+
+                if (ptTable -> table[i].dwLocalAddr == host_ip && ptTable -> table[i].dwLocalPort == port) {
+                    pid = ptTable -> table[i].dwOwningPid;
+                    break;
+                }
+            }
+        }
+
+        free(ptTable);
+        return pid;
+    }
+
     static QString ucharsToStr(char * buff, int length) {
         char * b = buff;
         QString s; //(length, Qt::Uninitialized);
         for(int i = 0; i < length; i++, b++) {
 //            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
-//            byte ch = (unsigned char)*b;
-//            QChar cch = QChar(ch);
             char cch = (*b >= 32) ? (unsigned char) *b : '.';
             s[i] = cch;
         }
@@ -427,8 +512,8 @@ public:
         TCP_HDR * tcpheader = (TCP_HDR *)(buffer + iphdrlen);
         int data_offset = tcpheader -> data_offset * 4;
 
-        res.insert("TCP Source Port",               NSTR_HOST_BYTES_ORDER(tcpheader -> source_port));
-        res.insert("TCP Destination Port",          NSTR_HOST_BYTES_ORDER(tcpheader -> dest_port));
+        res.insert(SOCK_ATTR_SRC_PORT,              NSTR_HOST_BYTES_ORDER(tcpheader -> source_port));
+        res.insert(SOCK_ATTR_DEST_PORT,             NSTR_HOST_BYTES_ORDER(tcpheader -> dest_port));
         res.insert("TCP Sequence Number",           NLSTR_HOST_BYTES_ORDER(tcpheader -> sequence));
         res.insert("TCP Acknowledge Number",        NLSTR_HOST_BYTES_ORDER(tcpheader -> acknowledge));
         res.insert("TCP Header Length",             UNSTR(data_offset));
@@ -459,15 +544,10 @@ public:
 
         UDP_HDR * udpheader = (UDP_HDR *)(buffer + iphdrlen);
 
-        res.insert("UDP Source Port",               NSTR_HOST_BYTES_ORDER(udpheader -> source_port));
-        res.insert("UDP Destination Port",          NSTR_HOST_BYTES_ORDER(udpheader -> dest_port));
+        res.insert(SOCK_ATTR_SRC_PORT,              NSTR_HOST_BYTES_ORDER(udpheader -> source_port));
+        res.insert(SOCK_ATTR_DEST_PORT,             NSTR_HOST_BYTES_ORDER(udpheader -> dest_port));
         res.insert("UDP Length",                    NSTR_HOST_BYTES_ORDER(udpheader -> length));
         res.insert("UDP Checksum",                  NSTR_HOST_BYTES_ORDER(udpheader -> checksum));
-
-        QString str = ucharsToStr(
-                    buffer + sizeof(UDP_HDR) + iphdrlen,
-                    size - sizeof(UDP_HDR) - iphdrlen
-                );
 
         res.insert(SOCK_ATTR_PAYLOAD,
             ucharsToStr(

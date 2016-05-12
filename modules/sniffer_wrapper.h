@@ -31,7 +31,7 @@ public:
         QObject::connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
         QObject::connect(this, SIGNAL(error(QString)), err_receiver, errorSlot);
         QObject::connect(sock, SIGNAL(error(QString)), err_receiver, errorSlot);
-        QObject::connect(sock, SIGNAL(packetReady(char*,int)), packet_receiver, packetSlot);
+        QObject::connect(sock, SIGNAL(packetReady(char*,int,int)), packet_receiver, packetSlot);
 
         if (sock -> binding(ip, port)) {
             sock -> enablePromMode();

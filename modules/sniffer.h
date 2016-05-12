@@ -56,8 +56,9 @@ class Sniffer : public QObject {
 
     bool resolve_ip_sender;
     bool resolve_ip_receiver;
+    bool resolve_app;
 
-    void procPacketAsync(QHash<QString, QString> attrs) {
+    void procPacketAsync(QHash<QString, QString> attrs, int port) {
         protocol_counters[attrs[SOCK_ATTR_PROTOCOL]]++;
 
         QString dest_ip = attrs[SOCK_ATTR_DEST_IP];
@@ -66,6 +67,22 @@ class Sniffer : public QObject {
         direction_counters[income]++;
 
         attrs.insert(SOCK_ATTR_DIRECTION,                   income ? SOCK_DIRECTION_IN : SOCK_DIRECTION_OUT);
+
+        if (resolve_app && !income) {
+            if (port == 0) port = htons(attrs.value(SOCK_ATTR_DEST_PORT, QStringLiteral("0")).toInt());
+
+            if (port > 0) {
+                DWORD pid = 0;
+
+                if (attrs[SOCK_ATTR_PROTOCOL] == QStringLiteral("TCP"))
+                    pid = SocketUtils::addrTcpToPid(attrs[SOCK_ATTR_SRC_IP], port);
+                else if (attrs[SOCK_ATTR_PROTOCOL] == QStringLiteral("UDP"))
+                    pid = SocketUtils::addrUdpToPid(attrs[SOCK_ATTR_SRC_IP], port);
+
+                QString app_path = SocketUtils::pidToPath(pid);
+                attrs.insert(SOCK_ATTR_APP,                 app_path);
+            }
+        }
 
         if (resolve_ip_sender)
             attrs.insert(SOCK_ATTR_SRC,                     getHostName(attrs[SOCK_ATTR_SRC_IP]));
@@ -80,7 +97,7 @@ class Sniffer : public QObject {
         connect(this, SIGNAL(sendPacket(QHash<QString,QString>)), parent(), packetSlot);
 
         SnifferSocketWrapper * wrapper = new SnifferSocketWrapper();
-        wrapper -> instantiate(this, SLOT(procPacket(char*,int)), parent(), errorSlot, ip, port);
+        wrapper -> instantiate(this, SLOT(procPacket(char*,int,int)), parent(), errorSlot, ip, port);
         wrappers.insert(ip, wrapper);
 
         QThread * thread = new QThread();
@@ -107,16 +124,16 @@ class Sniffer : public QObject {
 signals:
     void sendPacket(QHash<QString, QString>);
 protected slots:
-    void procPacket(char * data, int length) {
+    void procPacket(char * data, int length, int port) {
         QHash<QString, QString> attrs = SocketUtils::packetProcess(data, length);
         attrs.insert(SOCK_ATTR_LENGTH,                  NSTR(length));
         free(data);
 
         //QFutureWatcher<void> * server = new QFutureWatcher<void>();
-        /*server -> setFuture(*/QtConcurrent::run(this, &Sniffer::procPacketAsync, attrs)/*)*/;
+        /*server -> setFuture(*/QtConcurrent::run(this, &Sniffer::procPacketAsync, attrs, port)/*)*/;
     }
 public:
-    Sniffer(QObject * parent) : QObject(parent), resolve_ip_sender(false), resolve_ip_receiver(false) {
+    Sniffer(QObject * parent) : QObject(parent), resolve_ip_sender(false), resolve_ip_receiver(false), resolve_app(false) {
         qRegisterMetaType<QHash<QString,QString> >("QHash<QString,QString>");
     }
 
@@ -124,6 +141,7 @@ public:
 
     void enableSenderIpResolving(bool enabled = true) { resolve_ip_sender = enabled; }
     void enableReceiverIpResolving(bool enabled = true) { resolve_ip_receiver = enabled; }
+    void enableAppPathResolving(bool enabled = true) { resolve_app = enabled; }
 
     QString stat() {
         return QStringLiteral("income: %1 ||| outcome: %2").arg(direction_counters[true]).arg(direction_counters[false]);

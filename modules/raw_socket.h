@@ -27,7 +27,7 @@ class RawSocket : public QObject {
     char buffer[MAX_PACKET_SIZE];  // 64 Kb
 signals:
     void error(QString message);
-    void packetReady(char * buffer, int length);
+    void packetReady(char * buffer, int length, int port);
 
 public:
     //SOCK_STREAM
@@ -84,19 +84,24 @@ public:
 
             if (count > 0) {
                 // Once you have their address, you can use inet_ntop(), getnameinfo(), or gethostbyaddr() to print or get more information
+                int port = 0;
 
-//                switch (sender_addr.ss_family) {
-//                    case AF_INET: {
-//                        sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);
-//                        break;}
-//                    case AF_INET6: {
-//                        sockaddr_in6 * from = ((struct sockaddr_in6*)&sender_addr);
-//                    break;}
-//                }
+                switch (sender_addr.ss_family) {
+                    case AF_INET: {
+                        sockaddr_in * from = ((struct sockaddr_in*)&sender_addr);
+                        port = ntohs(from -> sin_port);
+//                        ip = from -> sin_addr.s_addr;
+                        break;}
+                    case AF_INET6: {
+                        sockaddr_in6 * from = ((struct sockaddr_in6*)&sender_addr);
+                        port = ntohs(from -> sin6_port);
+//                        struct in6_addr sin6_addr;
+                    break;}
+                }
 
                 char * send_buff = (char *)malloc(count);
                 memcpy(send_buff, buffer, count);
-                emit packetReady(send_buff, count);
+                emit packetReady(send_buff, count, port);
             }
         }
     }
@@ -146,59 +151,6 @@ private:
         return true;
     }
 };
-
-
-
-//    static DWORD GetClientPid(SOCKET client) {
-//        DWORD pid = 0;
-
-//        sockaddr_in ServerAddr = {0};
-//        int ServerAddrSize = sizeof(ServerAddr);
-
-//        sockaddr_in ClientAddr = {0};
-//        int ClientAddrSize = sizeof(ClientAddr);
-
-//        if ((getsockname(client, (sockaddr*)&ServerAddr, &ServerAddrSize) == 0) &&
-//            (getpeername(client, (sockaddr*)&ClientAddr, &ClientAddrSize) == 0))
-//        {
-//            PMIB_TCPTABLE2 TcpTable = NULL;
-//            ULONG TcpTableSize = 0;
-//            ULONG result;
-
-//            do {
-//                result = GetTcpTable2(TcpTable, &TcpTableSize, TRUE);
-//                if (result != ERROR_INSUFFICIENT_BUFFER)
-//                    break;
-
-//                LocalFree(TcpTable);
-//                TcpTable = (PMIB_TCPTABLE2) LocalAlloc(LMEM_FIXED, TcpTableSize);
-//            }
-//            while (TcpTable != NULL);
-
-//            if (result == NO_ERROR) {
-//                for (DWORD dw = 0; dw < TcpTable->dwNumEntries; ++dw) {
-//                    PMIB_TCPROW2 row = &(TcpTable->table[dw]);
-
-//                    if ((row->dwState == MIB_TCP_STATE_ESTAB) &&
-//                        (row->dwLocalAddr == ClientAddr.sin_addr.s_addr) &&
-//                        ((row->dwLocalPort & 0xFFFF) == ClientAddr.sin_port) &&
-//                        (row->dwRemoteAddr == ServerAddr.sin_addr.s_addr) &&
-//                        ((row->dwRemotePort & 0xFFFF) == ServerAddr.sin_port))
-//                    {
-//                        pid = row -> dwOwningPid;
-//                        break;
-//                    }
-//                }
-//            }
-
-//            LocalFree(TcpTable);
-//        }
-
-//        return pid;
-//    }
-
-
-
 
 
 //    void registerApp() {

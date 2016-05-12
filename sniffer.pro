@@ -28,7 +28,7 @@ HEADERS  += mainwindow.h \
 
 FORMS    += mainwindow.ui
 
-win32:LIBS += -lIphlpapi -lWs2_32
+win32:LIBS += -lIphlpapi -lWs2_32 -lpsapi
 
 #LIBS += -L$$PWD/libs/libtins/ -ltins -lwpcap
 #INCLUDEPATH += $$PWD/libs/libtins/include

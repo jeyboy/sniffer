@@ -4,7 +4,7 @@
 #include <qmessagebox.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
-    filter_in_proc(false), src_col(5), dst_col(6), filter(QString())
+    filter_in_proc(false), src_col(6), dst_col(7), app_col(1), filter(QString())
 {
     ui -> setupUi(this);
 
@@ -18,7 +18,7 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     initAddProtoPanel();
 
-    QStringList headers = QStringList() << "Timestamp" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
+    QStringList headers = QStringList() << "Timestamp" << "App" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
 
     ui -> table -> setColumnCount(headers.length());
     ui -> table -> setHorizontalHeaderLabels(headers);
@@ -29,8 +29,9 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     sniffer = new Sniffer(this);
 
-    on_resolveSenderNameBtn_clicked(false);
-    on_resolveReceiverNameBtn_clicked(false);
+    on_resolveSenderNameBtn_clicked(ui -> resolveSenderNameBtn -> isChecked());
+    on_resolveReceiverNameBtn_clicked(ui -> resolveReceiverNameBtn -> isChecked());
+    on_resolveAppBtn_clicked(ui -> resolveAppBtn -> isChecked());
 }
 
 MainWindow::~MainWindow() {
@@ -176,30 +177,35 @@ void MainWindow::packetInfoReceived(QHash<QString, QString> attrs) {
     QTableWidgetItem * timew = new QTableWidgetItem(attrs[SOCK_ATTR_TIMESTAMP]);
     ui -> table -> setItem(row, 0, timew);
 
+
+    QTableWidgetItem * appw = new QTableWidgetItem(attrs[SOCK_ATTR_APP]);
+    ui -> table -> setItem(row, (app_col = 1), appw);
+
+
     QTableWidgetItem * directw = new QTableWidgetItem(attrs[SOCK_ATTR_DIRECTION]);
-    ui -> table -> setItem(row, (direct_col = 1), directw);
+    ui -> table -> setItem(row, (direct_col = 2), directw);
     iterDirectBtnText(attrs[SOCK_ATTR_DIRECTION]);
 
     QTableWidgetItem * protow = new QTableWidgetItem(attrs[SOCK_ATTR_PROTOCOL]);
-    ui -> table -> setItem(row, (protocol_col = 2), protow);
+    ui -> table -> setItem(row, (protocol_col = 3), protow);
 
     QTableWidgetItem * sourceipw = new QTableWidgetItem(attrs[SOCK_ATTR_SRC_IP]);
-    ui -> table -> setItem(row, 3, sourceipw);
+    ui -> table -> setItem(row, 4, sourceipw);
 
     QTableWidgetItem * destipw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST_IP]);
-    ui -> table -> setItem(row, 4, destipw);
+    ui -> table -> setItem(row, 5, destipw);
 
     QTableWidgetItem * sourcew = new QTableWidgetItem(attrs[SOCK_ATTR_SRC]);
-    ui -> table -> setItem(row, (src_col = 5), sourcew);
+    ui -> table -> setItem(row, (src_col = 6), sourcew);
 
     QTableWidgetItem * destw = new QTableWidgetItem(attrs[SOCK_ATTR_DEST]);
-    ui -> table -> setItem(row, (dst_col = 6), destw);
+    ui -> table -> setItem(row, (dst_col = 7), destw);
 
     QTableWidgetItem * lengw = new QTableWidgetItem(attrs[SOCK_ATTR_LENGTH]);
-    ui -> table -> setItem(row, 7, lengw);
+    ui -> table -> setItem(row, 8, lengw);
 
     QTableWidgetItem * payw = new QTableWidgetItem(attrs[SOCK_ATTR_PAYLOAD]);
-    ui -> table -> setItem(row, (payload_col = 8), payw);
+    ui -> table -> setItem(row, (payload_col = 9), payw);
 
     QPushButton * btn = registerProtoBtn(attrs[SOCK_ATTR_PROTOCOL]);
     iterProtoBtnText(btn);
@@ -335,4 +341,9 @@ void MainWindow::on_resolveSenderNameBtn_clicked(bool checked) {
 void MainWindow::on_resolveReceiverNameBtn_clicked(bool checked) {
     sniffer -> enableReceiverIpResolving(checked);
     ui -> table -> setColumnHidden(dst_col, !checked);
+}
+
+void MainWindow::on_resolveAppBtn_clicked(bool checked) {
+    sniffer -> enableAppPathResolving(checked);
+    ui -> table -> setColumnHidden(app_col, !checked);
 }
