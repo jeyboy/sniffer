@@ -14,6 +14,11 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
     bar = new QToolBar(this);
     bar -> setMovable(true);
     addToolBar(bar);
+    bar -> addWidget(ui -> procBtn);
+    bar -> addSeparator();
+    bar -> addWidget(ui -> incomeBtn);
+    bar -> addWidget(ui -> outcomeBtn);
+    bar -> addSeparator();
 
     filter_info = new QLabel("No filters");
     ui -> statusBar -> addWidget(filter_info);

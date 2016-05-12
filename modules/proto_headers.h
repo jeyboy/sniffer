@@ -154,9 +154,6 @@ public:
 
         PMIB_TCPTABLE_OWNER_PID ptTable = (PMIB_TCPTABLE_OWNER_PID)malloc(dwSize);
 
-//        TCP_TABLE_OWNER_PID_LISTENER,
-//        TCP_TABLE_OWNER_PID_CONNECTIONS,
-//        TCP_TABLE_OWNER_PID_ALL,
         do {
             dwRetValue = GetExtendedTcpTable(ptTable, &dwSize, TRUE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
             if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
@@ -171,9 +168,7 @@ public:
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
-//                qDebug() << "TCP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
-
-                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                if (ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
@@ -195,9 +190,6 @@ public:
 
         PMIB_TCP6TABLE_OWNER_PID ptTable = (PMIB_TCP6TABLE_OWNER_PID)malloc(dwSize);
 
-//        TCP_TABLE_OWNER_PID_LISTENER,
-//        TCP_TABLE_OWNER_PID_CONNECTIONS,
-//        TCP_TABLE_OWNER_PID_ALL,
         do {
             dwRetValue = GetExtendedTcpTable(ptTable, &dwSize, TRUE, AF_INET6, TCP_TABLE_OWNER_PID_ALL, 0);
             if (dwRetValue != ERROR_INSUFFICIENT_BUFFER)
@@ -212,9 +204,7 @@ public:
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
-//                qDebug() << "TCP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
-
-                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                if (ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
@@ -246,9 +236,7 @@ public:
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
-//                qDebug() << "UDP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
-
-                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                if (ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
@@ -284,9 +272,7 @@ public:
             DWORD entry_num = ptTable -> dwNumEntries;
 
             for(DWORD i = 0; i < entry_num; i++) {
-//                qDebug() << "UDP ENTRY" << ptTable -> table[i].dwLocalAddr << ptTable -> table[i].dwLocalPort << port;
-
-                if (/*ptTable -> table[i].dwLocalAddr == host_ip && */ptTable -> table[i].dwLocalPort == port) {
+                if (ptTable -> table[i].dwLocalPort == port) {
                     pid = ptTable -> table[i].dwOwningPid;
                     break;
                 }
@@ -298,14 +284,16 @@ public:
     }
 
     static QString ucharsToStr(char * buff, int length) {
-        char * b = buff;
-        QString s; //(length, Qt::Uninitialized);
-        for(int i = 0; i < length; i++, b++) {
-//            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
-            char cch = (*b >= 32) ? (unsigned char) *b : '.';
-            s[i] = cch;
-        }
-        return s;
+//        char * b = buff;
+//        QString s; //(length, Qt::Uninitialized);
+//        for(int i = 0; i < length; i++, b++) {
+////            a = ( *b >=32 && *b <=128) ? (unsigned char) *b : '.';
+//            char cch = (*b >= 32) ? (unsigned char) *b : '.';
+//            s[i] = cch;
+//        }
+//        return s;
+
+        return QString::fromUtf8(buff, length);
     }
 
     static QString hostToHostName(const QString & ip_str) {
