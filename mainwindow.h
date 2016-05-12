@@ -25,6 +25,8 @@ class MainWindow : public QMainWindow {
     void setInfo();
     void procFilter();
     void initAddProtoPanel();
+
+    void createTab(int row);
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();

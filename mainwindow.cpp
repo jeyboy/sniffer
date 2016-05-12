@@ -1,8 +1,12 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "modules/accordion.h"
+
 #include <qmessagebox.h>
 #include <qscrollbar.h>
+#include <qtextedit.h>
+#include <qdockwidget.h>
 
 MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainWindow), ignore_invalid(false), ignore_other_proto(false),
     filter_in_proc(false), scroll_to_end(false), src_col(6), dst_col(7), app_col(1), filter(QString())
@@ -79,6 +83,40 @@ void MainWindow::initAddProtoPanel() {
 
     (new_proto_panel = bar -> addWidget(add_proto_panel)) -> setVisible(false);
     bar -> addSeparator();
+}
+
+void MainWindow::createTab(int row) {
+    QDockWidget * dock = new QDockWidget("Row: " + QString::number(row + 1), this);
+
+    QString text = ui -> table -> item(row, payload_col) -> text();
+
+
+//    setExclusive(true);
+//    setToggleable(false);
+//    addItem(QStringLiteral("In locations"), locationsArea, true);
+//    addItem(QStringLiteral("By predicates"), predicatesArea);
+//    addItem(QStringLiteral("With limitations"), limitationsArea);
+
+
+    Controls::Accordion * acc = new Controls::Accordion(dock);
+    acc -> setExclusive(false);
+    acc -> setToggleable(false);
+
+    QTextEdit * bodyText = new QTextEdit(dock);
+    bodyText -> setReadOnly(true);
+    bodyText -> setText(text);
+    acc -> addItem(QStringLiteral("Raw"), bodyText, true);
+
+    if (text.contains("http", Qt::CaseInsensitive)) {
+        QTextEdit * curlText = new QTextEdit(dock);
+        curlText -> setReadOnly(true);
+        curlText -> setText(SocketUtils::httpToCurl(text));
+
+        acc -> addItem(QStringLiteral("Curl"), curlText);
+    }
+
+    dock -> setWidget(acc);
+    addDockWidget(Qt::BottomDockWidgetArea, dock);
 }
 
 void MainWindow::newProtoBtn() {
@@ -265,8 +303,9 @@ void MainWindow::protoCancelBtnTriggered() {
 }
 
 void MainWindow::on_table_cellDoubleClicked(int row, int /*column*/) {
-    QString payload = ui -> table -> item(row, payload_col) -> text();
-    QMessageBox::information(this, "Payload", payload);
+    createTab(row);
+//    QString payload = ui -> table -> item(row, payload_col) -> text();
+//    QMessageBox::information(this, "Payload", payload);
 }
 
 void MainWindow::procFilter() {

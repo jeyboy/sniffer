@@ -17,14 +17,16 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    modules/accordion.cpp
 
 HEADERS  += mainwindow.h \
     modules/sniffer.h \
     modules/raw_socket.h \
     modules/proto_headers.h \
     modules/proto_defines.h \
-    modules/sniffer_wrapper.h
+    modules/sniffer_wrapper.h \
+    modules/accordion.h
 
 FORMS    += mainwindow.ui
 

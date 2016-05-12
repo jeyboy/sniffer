@@ -112,6 +112,14 @@ typedef struct icmp_hdr {
 
 class SocketUtils {
 public:
+    static QString httpToCurl(const QString & http) {
+        QString res = "curl ";
+
+//        http
+
+        return res;
+    }
+
     static QString pidToPath(DWORD pid) {
         if (pid == 0) return QString();
 
