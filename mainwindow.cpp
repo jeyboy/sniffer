@@ -66,10 +66,8 @@ MainWindow::MainWindow(QWidget * parent) : QMainWindow(parent), ui(new Ui::MainW
 
     initAddProtoPanel();
 
-    QStringList headers = QStringList() << "Timestamp" << "App" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
+    clearTable();
 
-    ui -> table -> setColumnCount(headers.length());
-    ui -> table -> setHorizontalHeaderLabels(headers);
     ui -> table -> setSortingEnabled(true);
     ui -> table -> setContextMenuPolicy(Qt::CustomContextMenu);
 
@@ -324,6 +322,13 @@ void MainWindow::errorReceived(QString message) {
     ui -> table -> setItem(row, 1, directw);
 }
 
+void MainWindow::clearTable() {
+    ui -> table -> clear();
+    ui -> table -> setRowCount(0);
+    QStringList headers = QStringList() << "Timestamp" << "App" << "Direction" << "Protocol" << "Source IP" << "Destination IP" << "Source Name" << "Destination Name" << "Length" << "Payload";
+    ui -> table -> setColumnCount(headers.length());
+    ui -> table -> setHorizontalHeaderLabels(headers);
+}
 
 void MainWindow::srcIpsFlagClicked(bool checked) {
     block_src_ips = checked;
@@ -339,8 +344,6 @@ void MainWindow::srcItemDoubleClicked(QListWidgetItem * item) {
     src_ips.remove(item -> text());
 
     delete item;
-
-
 }
 void MainWindow::dstItemDoubleClicked(QListWidgetItem * item) {
     QListWidget * list = (QListWidget *)(sender());
@@ -503,6 +506,8 @@ void MainWindow::on_table_customContextMenuRequested(const QPoint & pos) {
         menu.addAction(QStringLiteral("Add Dest Ip to filter list"), this, SLOT(destToFilterList()));
         menu.addAction(QStringLiteral("Remove Dest Ip from filter list"), this, SLOT(destFromFilterList()));
         menu.addSeparator();
+
+        menu.addAction(QStringLiteral("Clear list"), this, SLOT(clearTable()));
 
         if (!menu.isEmpty())
             menu.exec(ui -> table -> mapToGlobal(pos));

@@ -40,6 +40,8 @@ public slots:
     void errorReceived(QString message);
 
 private slots:
+    void clearTable();
+
     void srcIpsFlagClicked(bool);
     void dstIpsFlagClicked(bool);
 
